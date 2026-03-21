@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>โซน &amp; ชั้นวาง — Smart Warehouse RFID</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <a href="dashboard.html" class="sidebar-brand">
+            <div class="brand-icon">📡</div>
+            <div><div class="brand-name">Smart Warehouse</div><div class="brand-sub">RFID System</div></div>
+        </a>
+        <nav class="sidebar-nav">
+            <span class="nav-section-label">หน้าหลัก</span>
+            <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="nav-icon">📊</span> Dashboard</a>
+            <span class="nav-section-label">คลังสินค้า</span>
+            <a href="inventory.html" class="nav-item" data-page="inventory"><span class="nav-icon">📦</span> สินค้า &amp; คลัง</a>
+            <a href="locations.html" class="nav-item" data-page="locations"><span class="nav-icon">🗺️</span> โซน &amp; ชั้นวาง</a>
+            <span class="nav-section-label">RFID</span>
+            <a href="rfid-monitor.html" class="nav-item" data-page="rfid"><span class="nav-icon">📡</span> RFID Monitor</a>
+            <span class="nav-section-label">รายงาน</span>
+            <a href="transactions.html" class="nav-item" data-page="transactions"><span class="nav-icon">📋</span> รับ-เบิก สินค้า</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info" onclick="logout()">
+                <div class="user-avatar" id="sidebarUserAvatar">A</div>
+                <div><div class="user-name" id="sidebarUserName">Loading...</div><div class="user-role" id="sidebarUserRole">—</div></div>
+                <span style="margin-left:auto; color:var(--text-muted); font-size:0.8rem;">⏏️</span>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <header class="header">
+            <div class="header-left">
+                <div>
+                    <div class="page-title">🗺️ โซน &amp; ชั้นวาง</div>
+                    <div class="page-subtitle">จัดการตำแหน่งจัดเก็บสินค้า</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-primary" onclick="openAddLocationModal()">＋ เพิ่มตำแหน่ง</button>
+            </div>
+        </header>
+
+        <div class="page-body">
+            <!-- Zone Overview Cards -->
+            <div id="zoneCards" style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px;">
+                <div class="loading-overlay"><div class="spinner"></div> กำลังโหลด...</div>
+            </div>
+
+            <!-- Locations Table -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📍 รายการตำแหน่งทั้งหมด</div>
+                    <span class="text-muted" id="locCount" style="font-size:0.82rem;">— ตำแหน่ง</span>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>โซน</th>
+                                <th>ชั้นวาง (Shelf)</th>
+                                <th>คำอธิบาย</th>
+                                <th>ความจุ</th>
+                                <th>ปัจจุบัน</th>
+                                <th>การใช้งาน</th>
+                                <th>จัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="locBody">
+                            <tr><td colspan="7"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Location Modal -->
+<div class="modal-overlay" id="locationModal">
+    <div class="modal">
+        <div class="modal-title" id="locModalTitle">➕ เพิ่มตำแหน่งใหม่</div>
+        <div id="locModalAlert" class="alert alert-danger alert-hidden"></div>
+        <form id="locationForm">
+            <input type="hidden" id="locationId">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">รหัสโซน *</label>
+                    <input type="text" id="zoneCode" class="form-control" placeholder="A, B, C..." maxlength="10" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">รหัสชั้นวาง (Shelf ID) *</label>
+                    <input type="text" id="shelfId" class="form-control" placeholder="A-01, B-02..." maxlength="20" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">คำอธิบาย</label>
+                <input type="text" id="locDescription" class="form-control" placeholder="คำอธิบายตำแหน่ง">
+            </div>
+            <div class="form-group">
+                <label class="form-label">ความจุสูงสุด (items)</label>
+                <input type="number" id="capacity" class="form-control" value="100" min="1">
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeLocModal()">ยกเลิก</button>
+                <button type="submit" class="btn btn-primary" id="locSaveBtn">💾 บันทึก</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script src="js/api.js"></script>
+<script>
+    if (!requireAuth()) {}
+    setActiveNav('locations');
+    setupUserInfo();
+
+    let allLocations = [];
+
+    async function loadLocations() {
+        const res = await apiFetch('/locations');
+        if (!res?.success) return;
+        allLocations = res.data;
+        document.getElementById('locCount').textContent = `${allLocations.length} ตำแหน่ง`;
+        renderZoneCards(allLocations);
+        renderLocTable(allLocations);
+    }
+
+    function renderZoneCards(locs) {
+        const zones = [...new Set(locs.map(l => l.zone_code))].sort();
+        const container = document.getElementById('zoneCards');
+        if (!zones.length) { container.innerHTML = '<div class="empty-state"><span class="icon">🗺️</span><p>ยังไม่มีโซน</p></div>'; return; }
+        container.innerHTML = zones.map(zone => {
+            const zoneLocs = locs.filter(l => l.zone_code === zone);
+            const totalCap = zoneLocs.reduce((s, l) => s + l.capacity, 0);
+            const totalCur = zoneLocs.reduce((s, l) => s + l.current_count, 0);
+            const pct = totalCap > 0 ? Math.round((totalCur / totalCap) * 100) : 0;
+            const barClass = pct >= 90 ? 'full' : pct >= 70 ? 'warn' : '';
+            return `<div class="stat-card blue" style="min-width: 200px; flex: 1; max-width: 260px;">
+                <div class="stat-icon blue">🏭</div>
+                <div style="flex:1;">
+                    <div style="font-size:1.2rem; font-weight:800;">โซน ${zone}</div>
+                    <div class="stat-label">${zoneLocs.length} ชั้นวาง | ${totalCur}/${totalCap} items</div>
+                    <div class="progress-bar-wrap" style="margin-top:8px;">
+                        <div class="progress-bar ${barClass}" style="width:${pct}%"></div>
+                    </div>
+                    <div style="font-size:0.72rem; color:var(--text-secondary); margin-top:4px;">${pct}% ใช้งาน</div>
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function renderLocTable(locs) {
+        const tbody = document.getElementById('locBody');
+        if (!locs.length) {
+            tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><span class="icon">🗺️</span><p>ยังไม่มีตำแหน่ง</p></div></td></tr>';
+            return;
+        }
+        tbody.innerHTML = locs.map(l => {
+            const pct = l.capacity > 0 ? Math.round((l.current_count / l.capacity) * 100) : 0;
+            const barClass = pct >= 90 ? 'full' : pct >= 70 ? 'warn' : '';
+            return `<tr>
+                <td><span class="badge badge-operator">โซน ${l.zone_code}</span></td>
+                <td class="fw-bold fw-mono">${l.shelf_id}</td>
+                <td class="text-muted" style="font-size:0.82rem;">${l.description || '—'}</td>
+                <td>${formatNumber(l.capacity)}</td>
+                <td class="${l.current_count > 0 ? 'fw-bold' : 'text-muted'}">${formatNumber(l.current_count)}</td>
+                <td style="min-width:120px;">
+                    <div class="d-flex align-center gap-2">
+                        <div class="progress-bar-wrap flex-1"><div class="progress-bar ${barClass}" style="width:${pct}%"></div></div>
+                        <span style="font-size:0.72rem; color:var(--text-secondary); white-space:nowrap;">${pct}%</span>
+                    </div>
+                </td>
+                <td>
+                    <div class="table-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="openEditLocModal(${l.id})">✏️</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteLoc(${l.id}, '${l.shelf_id}')">🗑️</button>
+                    </div>
+                </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function openAddLocationModal() {
+        document.getElementById('locationId').value = '';
+        document.getElementById('locationForm').reset();
+        document.getElementById('locModalTitle').textContent = '➕ เพิ่มตำแหน่งใหม่';
+        document.getElementById('zoneCode').disabled = false;
+        document.getElementById('shelfId').disabled = false;
+        document.getElementById('locModalAlert').classList.add('alert-hidden');
+        document.getElementById('locationModal').classList.add('show');
+    }
+
+    function openEditLocModal(id) {
+        const l = allLocations.find(x => x.id === id);
+        if (!l) return;
+        document.getElementById('locationId').value = l.id;
+        document.getElementById('zoneCode').value = l.zone_code;
+        document.getElementById('zoneCode').disabled = true;
+        document.getElementById('shelfId').value = l.shelf_id;
+        document.getElementById('shelfId').disabled = true;
+        document.getElementById('locDescription').value = l.description || '';
+        document.getElementById('capacity').value = l.capacity;
+        document.getElementById('locModalTitle').textContent = '✏️ แก้ไขตำแหน่ง';
+        document.getElementById('locModalAlert').classList.add('alert-hidden');
+        document.getElementById('locationModal').classList.add('show');
+    }
+
+    function closeLocModal() {
+        document.getElementById('locationModal').classList.remove('show');
+    }
+
+    document.getElementById('locationForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const id = document.getElementById('locationId').value;
+        const body = {
+            zone_code: document.getElementById('zoneCode').value,
+            shelf_id: document.getElementById('shelfId').value,
+            description: document.getElementById('locDescription').value,
+            capacity: parseInt(document.getElementById('capacity').value)
+        };
+        const btn = document.getElementById('locSaveBtn');
+        btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+        const res = id
+            ? await apiFetch(`/locations/${id}`, { method: 'PUT', body: JSON.stringify(body) })
+            : await apiFetch('/locations', { method: 'POST', body: JSON.stringify(body) });
+        btn.disabled = false; btn.textContent = '💾 บันทึก';
+        if (res?.success) { closeLocModal(); showToast(res.message, 'success'); loadLocations(); }
+        else { const a = document.getElementById('locModalAlert'); a.textContent = res?.message || 'เกิดข้อผิดพลาด'; a.classList.remove('alert-hidden'); }
+    });
+
+    async function deleteLoc(id, shelf) {
+        if (!confirm(`ยืนยันลบตำแหน่ง "${shelf}"?`)) return;
+        const res = await apiFetch(`/locations/${id}`, { method: 'DELETE' });
+        if (res?.success) { showToast(res.message, 'success'); loadLocations(); }
+        else showToast(res?.message || 'เกิดข้อผิดพลาด', 'error');
+    }
+
+    document.getElementById('locationModal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeLocModal(); });
+
+    loadLocations();
+</script>
+</body>
+</html>

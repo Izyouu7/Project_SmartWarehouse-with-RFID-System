@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFID Monitor — Smart Warehouse RFID</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        .rfid-header-info { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+        .info-pill { padding: 6px 14px; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 20px; font-size: 0.8rem; display: flex; align-items: center; gap: 6px; }
+        .live-indicator { display: flex; align-items: center; gap: 8px; padding: 6px 14px; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); border-radius: 20px; font-size: 0.8rem; color: var(--accent-success); font-weight: 600; }
+        .tag-row-new { animation: slide-in 0.4s ease; }
+    </style>
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <a href="dashboard.html" class="sidebar-brand">
+            <div class="brand-icon">📡</div>
+            <div><div class="brand-name">Smart Warehouse</div><div class="brand-sub">RFID System</div></div>
+        </a>
+        <nav class="sidebar-nav">
+            <span class="nav-section-label">หน้าหลัก</span>
+            <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="nav-icon">📊</span> Dashboard</a>
+            <span class="nav-section-label">คลังสินค้า</span>
+            <a href="inventory.html" class="nav-item" data-page="inventory"><span class="nav-icon">📦</span> สินค้า &amp; คลัง</a>
+            <a href="locations.html" class="nav-item" data-page="locations"><span class="nav-icon">🗺️</span> โซน &amp; ชั้นวาง</a>
+            <span class="nav-section-label">RFID</span>
+            <a href="rfid-monitor.html" class="nav-item" data-page="rfid"><span class="nav-icon">📡</span> RFID Monitor</a>
+            <span class="nav-section-label">รายงาน</span>
+            <a href="transactions.html" class="nav-item" data-page="transactions"><span class="nav-icon">📋</span> รับ-เบิก สินค้า</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info" onclick="logout()">
+                <div class="user-avatar" id="sidebarUserAvatar">A</div>
+                <div><div class="user-name" id="sidebarUserName">Loading...</div><div class="user-role" id="sidebarUserRole">—</div></div>
+                <span style="margin-left:auto; color:var(--text-muted); font-size:0.8rem;">⏏️</span>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <header class="header">
+            <div class="header-left">
+                <div>
+                    <div class="page-title">📡 RFID Monitor</div>
+                    <div class="page-subtitle">ติดตามการสแกน RFID จาก Raspberry Pi แบบ Real-time</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <div class="live-indicator">
+                    <div class="pulse-dot"></div>
+                    LIVE — อัพเดททุก 5 วินาที
+                </div>
+                <button class="btn btn-secondary" onclick="stopLive()" id="stopBtn">⏸️ หยุด</button>
+                <button class="btn btn-primary" onclick="startLive()" id="startBtn" style="display:none;">▶️ เริ่ม</button>
+            </div>
+        </header>
+
+        <div class="page-body">
+            <!-- API Information for Raspberry Pi -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <div class="card-title">🥧 Raspberry Pi — วิธีส่งข้อมูลมายัง API</div>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleApiInfo()">ซ่อน/แสดง</button>
+                </div>
+                <div id="apiInfo">
+                    <div class="alert alert-info" style="margin-bottom: 12px;">Endpoint สำหรับ Raspberry Pi ส่งข้อมูล RFID scan:</div>
+                    <div style="background: var(--bg-secondary); padding: 14px; border-radius: var(--radius-sm); font-family: 'JetBrains Mono', monospace; font-size: 0.8rem; color: #a5f3fc; margin-bottom: 10px; line-height: 2;">
+                        <strong style="color: #34d399;">POST</strong> http://&lt;เซิร์ฟเวอร์ IP&gt;:3000/api/rfid/scan<br>
+                        <strong style="color: var(--accent-warning);">Header:</strong> x-api-key: rpi_warehouse_rfid_key_2026<br>
+                        <strong style="color: var(--accent-warning);">Content-Type:</strong> application/json<br><br>
+                        <strong style="color: #c084fc;">Body JSON:</strong><br>
+                        {<br>
+                        &nbsp;&nbsp;"tag_code": "RFID-A01-001",<br>
+                        &nbsp;&nbsp;"status": "In-Stock",&nbsp;&nbsp;&nbsp;&nbsp;<em style="color: var(--text-muted);">// In-Stock | Moving | Shipped</em><br>
+                        &nbsp;&nbsp;"reader_id": "READER-A",<br>
+                        &nbsp;&nbsp;"signal_strength": -55,<br>
+                        &nbsp;&nbsp;"location_hint": "Zone-A"&nbsp;&nbsp;<em style="color: var(--text-muted);">// optional</em><br>
+                        }
+                    </div>
+                    <div style="background: var(--bg-secondary); padding: 14px; border-radius: var(--radius-sm); font-size: 0.78rem; color: var(--text-secondary);">
+                        <strong>Python ตัวอย่าง (Raspberry Pi):</strong><br>
+                        <span style="color: #a5f3fc; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;">
+                            import requests<br>
+                            requests.post('http://SERVER_IP:3000/api/rfid/scan',<br>
+                            &nbsp;&nbsp;headers={'x-api-key': 'rpi_warehouse_rfid_key_2026'},<br>
+                            &nbsp;&nbsp;json={'tag_code': 'RFID-001', 'status': 'In-Stock', 'reader_id': 'RPI-1'})
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid-2" style="margin-bottom: 20px;">
+                <!-- All RFID Tags -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">🏷️ ทะเบียน RFID Tags ทั้งหมด</div>
+                        <span class="text-muted" id="tagCount" style="font-size:0.82rem;">— tags</span>
+                    </div>
+                    <div class="filter-row">
+                        <select class="form-control" id="tagStatusFilter" style="width:160px;" onchange="loadTags()">
+                            <option value="">สถานะทั้งหมด</option>
+                            <option value="In-Stock">In-Stock</option>
+                            <option value="Moving">Moving</option>
+                            <option value="Shipped">Shipped</option>
+                            <option value="Unknown">Unknown</option>
+                        </select>
+                        <div class="input-group" style="max-width: 200px;">
+                            <span class="input-group-icon">🔍</span>
+                            <input type="text" id="tagSearch" class="form-control" placeholder="ค้นหา tag..." oninput="loadTags()">
+                        </div>
+                    </div>
+                    <div class="table-container" style="max-height:400px; overflow-y:auto;">
+                        <table>
+                            <thead><tr><th>Tag Code</th><th>สินค้า</th><th>ตำแหน่ง</th><th>สถานะ</th><th>สแกนล่าสุด</th></tr></thead>
+                            <tbody id="tagsBody">
+                                <tr><td colspan="5"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Live Scan Log -->
+                <div class="card">
+                    <div class="card-header">
+                        <div class="card-title">📋 บันทึกการสแกน (Real-time)</div>
+                        <button class="btn btn-secondary btn-sm" onclick="loadRecentScans()">🔄</button>
+                    </div>
+                    <div class="scan-feed" id="liveScanFeed">
+                        <div class="loading-overlay"><div class="spinner"></div> กำลังโหลด...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manual Scan Test -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">🧪 ทดสอบส่งข้อมูล RFID (Simulate Scan)</div>
+                </div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+                    <div class="form-group mb-0">
+                        <label class="form-label">Tag Code</label>
+                        <input type="text" id="testTag" class="form-control" placeholder="RFID-TEST-001" style="width:200px;">
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="form-label">Status</label>
+                        <select id="testStatus" class="form-control" style="width:150px;">
+                            <option value="In-Stock">In-Stock</option>
+                            <option value="Moving">Moving</option>
+                            <option value="Shipped">Shipped</option>
+                        </select>
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="form-label">Reader ID</label>
+                        <input type="text" id="testReader" class="form-control" placeholder="READER-A" style="width:150px;">
+                    </div>
+                    <button class="btn btn-primary" onclick="sendTestScan()">📤 ส่ง Scan</button>
+                </div>
+                <div id="testResult" class="mt-3" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script src="js/api.js"></script>
+<script>
+    if (!requireAuth()) {}
+    setActiveNav('rfid');
+    setupUserInfo();
+
+    let liveInterval = null;
+    let lastScanCount = 0;
+
+    async function loadTags() {
+        const status = document.getElementById('tagStatusFilter').value;
+        const search = document.getElementById('tagSearch').value;
+        let url = '/rfid/tags';
+        const params = [];
+        if (status) params.push(`status=${status}`);
+        if (search) params.push(`search=${encodeURIComponent(search)}`);
+        if (params.length) url += '?' + params.join('&');
+        const res = await apiFetch(url);
+        if (!res?.success) return;
+        document.getElementById('tagCount').textContent = `${res.data.length} tags`;
+        const tbody = document.getElementById('tagsBody');
+        if (!res.data.length) {
+            tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><span class="icon">🏷️</span><p>ไม่พบแท็ก</p></div></td></tr>';
+            return;
+        }
+        tbody.innerHTML = res.data.map(t => `
+            <tr>
+                <td class="fw-mono" style="font-size:0.75rem;">${t.tag_code}</td>
+                <td>${t.product_name ? `<strong>${t.product_name}</strong><br><small class="text-muted">${t.sku}</small>` : '<span class="text-muted">—</span>'}</td>
+                <td>${t.zone_code ? `<span class="code-text">${t.zone_code}-${t.shelf_id}</span>` : '<span class="text-muted">—</span>'}</td>
+                <td>${getStatusBadge(t.status)}</td>
+                <td style="font-size:0.72rem; color:var(--text-secondary);">${formatDate(t.last_seen)}</td>
+            </tr>`).join('');
+    }
+
+    async function loadRecentScans() {
+        const res = await apiFetch('/rfid/recent?limit=30');
+        if (!res?.success) return;
+        const feed = document.getElementById('liveScanFeed');
+        if (!res.data.length) {
+            feed.innerHTML = '<div class="empty-state"><span class="icon">📡</span><p>ยังไม่มีการสแกน</p></div>';
+            return;
+        }
+        feed.innerHTML = res.data.map((s, i) => `
+            <div class="scan-item ${i === 0 && res.data.length > lastScanCount ? 'tag-row-new' : ''}">
+                <span class="scan-tag">${s.tag_code}</span>
+                <span class="scan-product">${s.product_name || '<span class="text-muted">ไม่ทราบสินค้า</span>'}</span>
+                ${getStatusBadge(s.status)}
+                <span class="scan-time">${formatDate(s.scanned_at)}</span>
+            </div>`).join('');
+        const prevCount = lastScanCount;
+        lastScanCount = res.data.length;
+        if (lastScanCount > prevCount && prevCount > 0) showToast('📡 ตรวจพบการสแกนใหม่!', 'info');
+    }
+
+    async function sendTestScan() {
+        const tag_code = document.getElementById('testTag').value || 'RFID-TEST-001';
+        const status = document.getElementById('testStatus').value;
+        const reader_id = document.getElementById('testReader').value || 'READER-TEST';
+        const res = await apiFetch('/rfid/scan', {
+            method: 'POST',
+            headers: { 'x-api-key': 'rpi_warehouse_rfid_key_2026' },
+            body: JSON.stringify({ tag_code, status, reader_id, signal_strength: -60, timestamp: new Date().toISOString() })
+        });
+        const resultDiv = document.getElementById('testResult');
+        resultDiv.style.display = 'block';
+        if (res?.success) {
+            resultDiv.innerHTML = `<div class="alert alert-success">✅ ส่งข้อมูลสำเร็จ! Tag: <strong>${tag_code}</strong> → Status: ${getStatusBadge(status)}</div>`;
+            showToast('📡 ส่ง RFID Scan สำเร็จ', 'success');
+            loadRecentScans(); loadTags();
+        } else {
+            resultDiv.innerHTML = `<div class="alert alert-danger">❌ ${res?.message || 'เกิดข้อผิดพลาด'}</div>`;
+        }
+    }
+
+    function startLive() {
+        liveInterval = setInterval(() => { loadRecentScans(); loadTags(); }, 5000);
+        document.getElementById('stopBtn').style.display = '';
+        document.getElementById('startBtn').style.display = 'none';
+    }
+
+    function stopLive() {
+        if (liveInterval) clearInterval(liveInterval);
+        document.getElementById('stopBtn').style.display = 'none';
+        document.getElementById('startBtn').style.display = '';
+    }
+
+    function toggleApiInfo() {
+        const el = document.getElementById('apiInfo');
+        el.style.display = el.style.display === 'none' ? '' : 'none';
+    }
+
+    loadTags(); loadRecentScans(); startLive();
+</script>
+</body>
+</html>

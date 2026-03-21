@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>รับ-เบิก สินค้า — Smart Warehouse RFID</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app-layout">
+    <aside class="sidebar">
+        <a href="dashboard.html" class="sidebar-brand">
+            <div class="brand-icon">📡</div>
+            <div><div class="brand-name">Smart Warehouse</div><div class="brand-sub">RFID System</div></div>
+        </a>
+        <nav class="sidebar-nav">
+            <span class="nav-section-label">หน้าหลัก</span>
+            <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="nav-icon">📊</span> Dashboard</a>
+            <span class="nav-section-label">คลังสินค้า</span>
+            <a href="inventory.html" class="nav-item" data-page="inventory"><span class="nav-icon">📦</span> สินค้า &amp; คลัง</a>
+            <a href="locations.html" class="nav-item" data-page="locations"><span class="nav-icon">🗺️</span> โซน &amp; ชั้นวาง</a>
+            <span class="nav-section-label">RFID</span>
+            <a href="rfid-monitor.html" class="nav-item" data-page="rfid"><span class="nav-icon">📡</span> RFID Monitor</a>
+            <span class="nav-section-label">รายงาน</span>
+            <a href="transactions.html" class="nav-item" data-page="transactions"><span class="nav-icon">📋</span> รับ-เบิก สินค้า</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-info" onclick="logout()">
+                <div class="user-avatar" id="sidebarUserAvatar">A</div>
+                <div><div class="user-name" id="sidebarUserName">Loading...</div><div class="user-role" id="sidebarUserRole">—</div></div>
+                <span style="margin-left:auto; color:var(--text-muted); font-size:0.8rem;">⏏️</span>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <header class="header">
+            <div class="header-left">
+                <div>
+                    <div class="page-title">📋 รับ-เบิก สินค้า</div>
+                    <div class="page-subtitle">ใบสั่งซื้อ (PO) และใบเบิกสินค้า</div>
+                </div>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-success" onclick="openModal('IN')">⬇️ รับสินค้า (IN)</button>
+                <button class="btn btn-danger" onclick="openModal('OUT')">⬆️ เบิกสินค้า (OUT)</button>
+            </div>
+        </header>
+
+        <div class="page-body">
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-title">📋 ประวัติรายการ</div>
+                    <span class="text-muted" id="txCount" style="font-size:0.82rem;">— รายการ</span>
+                </div>
+                <div class="filter-row">
+                    <div class="input-group" style="max-width:260px;">
+                        <span class="input-group-icon">🔍</span>
+                        <input type="text" id="txSearch" class="form-control" placeholder="ค้นหา PO, สินค้า..." oninput="loadTransactions()">
+                    </div>
+                    <select class="form-control" id="txTypeFilter" style="width:150px;" onchange="loadTransactions()">
+                        <option value="">ประเภททั้งหมด</option>
+                        <option value="IN">รับเข้า (IN)</option>
+                        <option value="OUT">เบิกออก (OUT)</option>
+                    </select>
+                    <button class="btn btn-secondary" onclick="loadTransactions()">🔄 รีเฟรช</button>
+                </div>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>เลขที่ PO</th>
+                                <th>ประเภท</th>
+                                <th>สินค้า</th>
+                                <th>RFID Tag</th>
+                                <th>จำนวน</th>
+                                <th>พนักงาน</th>
+                                <th>แหล่งที่มา</th>
+                                <th>วันเวลา</th>
+                            </tr>
+                        </thead>
+                        <tbody id="txBody">
+                            <tr><td colspan="9"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Transaction Modal -->
+<div class="modal-overlay" id="txModal">
+    <div class="modal">
+        <div class="modal-title" id="txModalTitle">⬇️ รับสินค้าเข้าคลัง</div>
+        <div id="txModalAlert" class="alert alert-danger alert-hidden"></div>
+        <form id="txForm">
+            <input type="hidden" id="txType">
+            <div class="grid-2">
+                <div class="form-group">
+                    <label class="form-label">เลขที่ PO / ใบเบิก</label>
+                    <input type="text" id="poNumber" class="form-control" placeholder="PO-2026-001">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">จำนวน</label>
+                    <input type="number" id="txQty" class="form-control" value="1" min="1">
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">สินค้า *</label>
+                <select id="txProduct" class="form-control" required>
+                    <option value="">-- เลือกสินค้า --</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">หมายเหตุ</label>
+                <textarea id="txNotes" class="form-control" rows="2" placeholder="หมายเหตุ (ถ้ามี)"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="closeTxModal()">ยกเลิก</button>
+                <button type="submit" class="btn btn-primary" id="txSaveBtn">💾 บันทึก</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+<script src="js/api.js"></script>
+<script>
+    if (!requireAuth()) {}
+    setActiveNav('transactions');
+    setupUserInfo();
+
+    let products = [];
+
+    async function loadProducts() {
+        const res = await apiFetch('/products');
+        if (!res?.success) return;
+        products = res.data;
+        const sel = document.getElementById('txProduct');
+        sel.innerHTML = '<option value="">-- เลือกสินค้า --</option>' +
+            products.map(p => `<option value="${p.id}">${p.sku} — ${p.name}</option>`).join('');
+    }
+
+    async function loadTransactions() {
+        const search = document.getElementById('txSearch').value;
+        const type = document.getElementById('txTypeFilter').value;
+        let url = '/transactions?limit=100';
+        if (search) url += `&search=${encodeURIComponent(search)}`;
+        if (type) url += `&type=${type}`;
+        const res = await apiFetch(url);
+        if (!res?.success) return;
+        document.getElementById('txCount').textContent = `${res.data.length} รายการ`;
+        const tbody = document.getElementById('txBody');
+        if (!res.data.length) {
+            tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><span class="icon">📋</span><p>ไม่พบรายการ</p></div></td></tr>';
+            return;
+        }
+        tbody.innerHTML = res.data.map((t, i) => `
+            <tr>
+                <td class="text-muted" style="font-size:0.75rem;">${t.id}</td>
+                <td class="fw-mono">${t.po_number || '<span class="text-muted">—</span>'}</td>
+                <td>${getTxTypeBadge(t.type)}</td>
+                <td>${t.product_name ? `<strong>${t.product_name}</strong><br><small class="text-muted">${t.sku}</small>` : '<span class="text-muted">—</span>'}</td>
+                <td>${t.tag_code ? `<span class="code-text">${t.tag_code}</span>` : '<span class="text-muted">—</span>'}</td>
+                <td class="fw-bold">${t.quantity}</td>
+                <td>${t.employee_name || '<span class="text-muted">—</span>'}</td>
+                <td>
+                    <span class="badge ${t.source === 'rfid_scan' ? 'badge-in-stock' : 'badge-unknown'}">
+                        ${t.source === 'rfid_scan' ? '📡 RFID Auto' : t.source === 'manual' ? '✍️ Manual' : t.source}
+                    </span>
+                </td>
+                <td style="font-size:0.75rem; color:var(--text-secondary);">${formatDate(t.created_at)}</td>
+            </tr>`).join('');
+    }
+
+    function openModal(type) {
+        document.getElementById('txType').value = type;
+        document.getElementById('txModalTitle').textContent = type === 'IN' ? '⬇️ รับสินค้าเข้าคลัง' : '⬆️ เบิกสินค้าออก';
+        document.getElementById('txForm').reset();
+        document.getElementById('txModalAlert').classList.add('alert-hidden');
+        document.getElementById('txModal').classList.add('show');
+    }
+
+    function closeTxModal() {
+        document.getElementById('txModal').classList.remove('show');
+    }
+
+    document.getElementById('txForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const btn = document.getElementById('txSaveBtn');
+        btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
+        const body = {
+            type: document.getElementById('txType').value,
+            po_number: document.getElementById('poNumber').value,
+            product_id: document.getElementById('txProduct').value,
+            quantity: parseInt(document.getElementById('txQty').value),
+            notes: document.getElementById('txNotes').value
+        };
+        const res = await apiFetch('/transactions', { method: 'POST', body: JSON.stringify(body) });
+        btn.disabled = false; btn.textContent = '💾 บันทึก';
+        if (res?.success) { closeTxModal(); showToast(res.message, 'success'); loadTransactions(); }
+        else { const a = document.getElementById('txModalAlert'); a.textContent = res?.message || 'เกิดข้อผิดพลาด'; a.classList.remove('alert-hidden'); }
+    });
+
+    document.getElementById('txModal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeTxModal(); });
+
+    loadProducts(); loadTransactions();
+</script>
+</body>
+</html>

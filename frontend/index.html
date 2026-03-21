@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — Smart Warehouse RFID</title>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body { display: flex; align-items: center; justify-content: center; min-height: 100vh; position: relative; }
+        /* Animated grid background */
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background-image:
+                radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(6, 182, 212, 0.06) 0%, transparent 50%),
+                linear-gradient(rgba(59, 130, 246, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(59, 130, 246, 0.04) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 40px 40px, 40px 40px;
+            pointer-events: none;
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .login-brand {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .login-logo {
+            width: 70px; height: 70px;
+            background: var(--gradient-primary);
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin-bottom: 16px;
+            box-shadow: 0 0 40px rgba(59, 130, 246, 0.4);
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+
+        .login-brand h1 { font-size: 1.5rem; font-weight: 800; color: var(--text-primary); }
+        .login-brand p { font-size: 0.82rem; color: var(--accent-secondary); margin-top: 4px; letter-spacing: 1px; text-transform: uppercase; }
+
+        .login-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-xl);
+            padding: 32px;
+            box-shadow: var(--shadow-glow), var(--shadow-lg);
+            backdrop-filter: blur(10px);
+        }
+
+        .login-card h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 4px; }
+        .login-card .sub { font-size: 0.82rem; color: var(--text-secondary); margin-bottom: 24px; }
+
+        .login-btn {
+            width: 100%;
+            padding: 12px;
+            font-size: 0.95rem;
+            justify-content: center;
+            margin-top: 8px;
+        }
+
+        .login-footer {
+            text-align: center;
+            margin-top: 24px;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        .login-footer a { color: var(--accent-secondary); text-decoration: none; }
+        .login-footer a:hover { color: var(--accent-primary); }
+
+        .demo-hint {
+            margin-top: 20px;
+            padding: 12px;
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: var(--radius-sm);
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        .demo-hint strong { color: var(--accent-primary); }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-brand">
+            <div class="login-logo">📡</div>
+            <h1>Smart Warehouse</h1>
+            <p>RFID Management System</p>
+        </div>
+
+        <div class="login-card">
+            <h2>เข้าสู่ระบบ</h2>
+            <p class="sub">กรุณาใส่ข้อมูลเพื่อเข้าใช้งานระบบ</p>
+
+            <div id="loginAlert" class="alert alert-danger alert-hidden"></div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label class="form-label" for="username">ชื่อผู้ใช้</label>
+                    <div class="input-group">
+                        <span class="input-group-icon">👤</span>
+                        <input type="text" id="username" name="username" class="form-control"
+                            placeholder="username" autocomplete="username" required>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="password">รหัสผ่าน</label>
+                    <div class="input-group">
+                        <span class="input-group-icon">🔒</span>
+                        <input type="password" id="password" name="password" class="form-control"
+                            placeholder="••••••••" autocomplete="current-password" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary login-btn" id="loginBtn">
+                    <span id="loginBtnText">เข้าสู่ระบบ</span>
+                    <span id="loginSpinner" class="spinner" style="display:none; width:16px; height:16px; border-width:2px;"></span>
+                </button>
+            </form>
+
+            <div class="demo-hint">
+                <strong>ข้อมูลทดสอบ:</strong><br>
+                👑 Admin: <strong>admin</strong> / <strong>password</strong><br>
+                👷 Operator: <strong>operator1</strong> / <strong>password</strong>
+            </div>
+        </div>
+
+        <div class="login-footer">
+            Smart Warehouse RFID System v1.0 &bull;
+            <a href="https://github.com" target="_blank">Documentation</a>
+        </div>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="js/auth.js"></script>
+    <script>
+        // If already logged in, redirect to dashboard
+        if (localStorage.getItem('token')) {
+            window.location.href = 'dashboard.html';
+        }
+
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('loginBtn');
+            const btnText = document.getElementById('loginBtnText');
+            const spinner = document.getElementById('loginSpinner');
+            const alert = document.getElementById('loginAlert');
+
+            btn.disabled = true;
+            btnText.textContent = 'กำลังเข้าสู่ระบบ...';
+            spinner.style.display = 'inline-block';
+            alert.classList.add('alert-hidden');
+
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    window.location.href = 'dashboard.html';
+                } else {
+                    alert.textContent = '⚠️ ' + data.message;
+                    alert.classList.remove('alert-hidden');
+                    btn.disabled = false;
+                    btnText.textContent = 'เข้าสู่ระบบ';
+                    spinner.style.display = 'none';
+                }
+            } catch {
+                alert.textContent = '❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
+                alert.classList.remove('alert-hidden');
+                btn.disabled = false;
+                btnText.textContent = 'เข้าสู่ระบบ';
+                spinner.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>
