@@ -23,6 +23,9 @@
             <a href="rfid-monitor.html" class="nav-item" data-page="rfid"><span class="nav-icon">📡</span> RFID Monitor</a>
             <span class="nav-section-label">รายงาน</span>
             <a href="transactions.html" class="nav-item" data-page="transactions"><span class="nav-icon">📋</span> รับ-เบิก สินค้า</a>
+            <span class="nav-section-label">บริษัทคู่ค้า</span>
+            <a href="suppliers.html" class="nav-item" data-page="suppliers"><span class="nav-icon">🏭</span> Supplier</a>
+            <a href="customers.html" class="nav-item" data-page="customers"><span class="nav-icon">🏢</span> Customer</a>
         </nav>
         <div class="sidebar-footer">
             <div class="user-info" onclick="logout()">
@@ -38,12 +41,10 @@
             <div class="header-left">
                 <div>
                     <div class="page-title">📦 สินค้า &amp; คลัง</div>
-                    <div class="page-subtitle">จัดการข้อมูลสินค้าและสถานะ RFID</div>
+                    <div class="page-subtitle">จัดการข้อมูลสินค้าและ RFID Tags</div>
                 </div>
             </div>
-            <div class="header-right">
-                <button class="btn btn-primary" onclick="openAddModal()">＋ เพิ่มสินค้า</button>
-            </div>
+            <div class="header-right"></div>
         </header>
 
         <div class="page-body">
@@ -52,40 +53,27 @@
                     <div class="card-title">📋 รายการสินค้าทั้งหมด</div>
                     <span class="text-muted" id="productCount" style="font-size:0.82rem;">กำลังโหลด...</span>
                 </div>
-                <!-- Filters -->
                 <div class="filter-row">
                     <div class="input-group" style="max-width: 280px;">
                         <span class="input-group-icon">🔍</span>
-                        <input type="text" id="searchInput" class="form-control" placeholder="ค้นหา SKU หรือชื่อสินค้า..." oninput="filterProducts()">
+                        <input type="text" id="searchInput" class="form-control" placeholder="ค้นหารหัสหรือชื่อสินค้า..." oninput="filterProducts()">
                     </div>
-                    <select class="form-control" id="statusFilter" style="width:160px;" onchange="filterProducts()">
-                        <option value="">สถานะทั้งหมด</option>
-                        <option value="In-Stock">In-Stock</option>
-                        <option value="Moving">Moving</option>
-                        <option value="Shipped">Shipped</option>
-                    </select>
                     <button class="btn btn-secondary" onclick="loadProducts()">🔄 รีเฟรช</button>
                 </div>
-
                 <div class="table-container">
                     <table id="productsTable">
                         <thead>
                             <tr>
-                                <th>SKU</th>
+                                <th>รหัสสินค้า</th>
                                 <th>ชื่อสินค้า</th>
-                                <th>หน่วย</th>
+                                <th>จำนวนคงเหลือ</th>
                                 <th>จุดสั่งซื้อ</th>
                                 <th>ราคา</th>
-                                <th>In-Stock</th>
-                                <th>Moving</th>
-                                <th>Shipped</th>
                                 <th>จัดการ</th>
                             </tr>
                         </thead>
                         <tbody id="productsBody">
-                            <tr><td colspan="9" class="text-muted" style="text-align:center; padding:30px;">
-                                <div class="loading-overlay"><div class="spinner"></div> กำลังโหลดข้อมูล...</div>
-                            </td></tr>
+                            <tr><td colspan="5"><div class="loading-overlay"><div class="spinner"></div> กำลังโหลดข้อมูล...</div></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -100,24 +88,14 @@
         <div class="modal-title" id="modalTitle">➕ เพิ่มสินค้าใหม่</div>
         <div id="modalAlert" class="alert alert-danger alert-hidden"></div>
         <form id="productForm">
-            <input type="hidden" id="productId">
-            <div class="grid-2">
-                <div class="form-group">
-                    <label class="form-label">รหัสสินค้า (SKU) *</label>
-                    <input type="text" id="sku" class="form-control" placeholder="SKU-001" required>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">หน่วย</label>
-                    <input type="text" id="unit" class="form-control" placeholder="pcs, ชิ้น, ม้วน...">
-                </div>
+            <input type="hidden" id="editProductId">
+            <div class="form-group">
+                <label class="form-label">รหัสสินค้า (Product ID) *</label>
+                <input type="text" id="productIdInput" class="form-control" placeholder="PRD0000001" maxlength="10" required>
             </div>
             <div class="form-group">
                 <label class="form-label">ชื่อสินค้า *</label>
                 <input type="text" id="name" class="form-control" placeholder="ชื่อสินค้า" required>
-            </div>
-            <div class="form-group">
-                <label class="form-label">รายละเอียด</label>
-                <textarea id="description" class="form-control" rows="2" placeholder="คำอธิบายสินค้า (ถ้ามี)"></textarea>
             </div>
             <div class="grid-2">
                 <div class="form-group">
@@ -156,37 +134,33 @@
 
     function filterProducts() {
         const search = document.getElementById('searchInput').value.toLowerCase();
-        const status = document.getElementById('statusFilter').value;
-        let filtered = allProducts;
-        if (search) filtered = filtered.filter(p => p.sku.toLowerCase().includes(search) || p.name.toLowerCase().includes(search));
-        // Filter by status using RFID counts
-        if (status === 'In-Stock') filtered = filtered.filter(p => (p.in_stock || 0) > 0);
-        if (status === 'Moving') filtered = filtered.filter(p => (p.moving || 0) > 0);
-        if (status === 'Shipped') filtered = filtered.filter(p => (p.shipped || 0) > 0);
+        const filtered = allProducts.filter(p =>
+            p.product_id.toLowerCase().includes(search) || p.name.toLowerCase().includes(search)
+        );
         renderProducts(filtered);
     }
 
     function renderProducts(products) {
         const tbody = document.getElementById('productsBody');
         if (!products.length) {
-            tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><span class="icon">📦</span><p>ไม่พบสินค้า</p></div></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><span class="icon">📦</span><p>ไม่พบสินค้า</p></div></td></tr>';
             return;
         }
         tbody.innerHTML = products.map(p => {
-            const isLow = (p.in_stock || 0) <= p.reorder_point;
+            const stock = parseInt(p.stock_count) || 0;
+            const stockBadge = stock > 0
+                ? `<span class="badge badge-in-stock">${stock}</span>`
+                : `<span class="badge badge-shipped">0</span>`;
             return `<tr>
-                <td class="fw-mono">${p.sku} ${isLow ? '<span class="badge badge-low">ใกล้หมด</span>' : ''}</td>
-                <td><strong>${p.name}</strong>${p.description ? `<br><small class="text-muted">${p.description.substring(0,50)}...</small>` : ''}</td>
-                <td>${p.unit || '—'}</td>
+                <td class="fw-mono">${p.product_id}</td>
+                <td><strong>${p.name}</strong></td>
+                <td>${stockBadge}</td>
                 <td>${p.reorder_point}</td>
                 <td>${formatCurrency(p.price)}</td>
-                <td class="${(p.in_stock||0) > 0 ? 'text-success fw-bold' : 'text-muted'}">${p.in_stock || 0}</td>
-                <td class="${(p.moving||0) > 0 ? 'text-warning fw-bold' : 'text-muted'}">${p.moving || 0}</td>
-                <td class="${(p.shipped||0) > 0 ? '' : 'text-muted'}">${p.shipped || 0}</td>
                 <td>
                     <div class="table-actions">
-                        <button class="btn btn-secondary btn-sm" onclick="openEditModal(${p.id})">✏️ แก้ไข</button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteProduct(${p.id}, '${p.name}')">🗑️</button>
+                        <button class="btn btn-secondary btn-sm" onclick="openEditModal('${p.product_id}')">✏️ แก้ไข</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.product_id}', '${p.name}')">🗑️</button>
                     </div>
                 </td>
             </tr>`;
@@ -194,53 +168,47 @@
     }
 
     function openAddModal() {
-        document.getElementById('productId').value = '';
+        document.getElementById('editProductId').value = '';
         document.getElementById('productForm').reset();
         document.getElementById('modalTitle').textContent = '➕ เพิ่มสินค้าใหม่';
-        document.getElementById('sku').disabled = false;
+        document.getElementById('productIdInput').disabled = false;
         document.getElementById('modalAlert').classList.add('alert-hidden');
         document.getElementById('productModal').classList.add('show');
     }
 
     function openEditModal(id) {
-        const p = allProducts.find(x => x.id === id);
+        const p = allProducts.find(x => x.product_id === id);
         if (!p) return;
-        document.getElementById('productId').value = p.id;
-        document.getElementById('sku').value = p.sku;
-        document.getElementById('sku').disabled = true;
+        document.getElementById('editProductId').value = p.product_id;
+        document.getElementById('productIdInput').value = p.product_id;
+        document.getElementById('productIdInput').disabled = true;
         document.getElementById('name').value = p.name;
-        document.getElementById('description').value = p.description || '';
         document.getElementById('reorderPoint').value = p.reorder_point;
         document.getElementById('price').value = p.price;
-        document.getElementById('unit').value = p.unit || '';
         document.getElementById('modalTitle').textContent = '✏️ แก้ไขสินค้า';
         document.getElementById('modalAlert').classList.add('alert-hidden');
         document.getElementById('productModal').classList.add('show');
     }
 
-    function closeModal() {
-        document.getElementById('productModal').classList.remove('show');
-    }
+    function closeModal() { document.getElementById('productModal').classList.remove('show'); }
 
     document.getElementById('productForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const id = document.getElementById('productId').value;
+        const editId = document.getElementById('editProductId').value;
         const body = {
-            sku: document.getElementById('sku').value,
-            name: document.getElementById('name').value,
-            description: document.getElementById('description').value,
+            product_id:    document.getElementById('productIdInput').value,
+            name:          document.getElementById('name').value,
             reorder_point: parseInt(document.getElementById('reorderPoint').value),
-            price: parseFloat(document.getElementById('price').value),
-            unit: document.getElementById('unit').value
+            price:         parseFloat(document.getElementById('price').value)
         };
         const btn = document.getElementById('modalSaveBtn');
         btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
-        const res = id
-            ? await apiFetch(`/products/${id}`, { method: 'PUT', body: JSON.stringify(body) })
+        const res = editId
+            ? await apiFetch(`/products/${editId}`, { method: 'PUT', body: JSON.stringify(body) })
             : await apiFetch('/products', { method: 'POST', body: JSON.stringify(body) });
         btn.disabled = false; btn.textContent = '💾 บันทึก';
         if (res?.success) { closeModal(); showToast(res.message, 'success'); loadProducts(); }
-        else { const alertEl = document.getElementById('modalAlert'); alertEl.textContent = res?.message || 'เกิดข้อผิดพลาด'; alertEl.classList.remove('alert-hidden'); }
+        else { const a = document.getElementById('modalAlert'); a.textContent = res?.message || 'เกิดข้อผิดพลาด'; a.classList.remove('alert-hidden'); }
     });
 
     async function deleteProduct(id, name) {
@@ -251,7 +219,6 @@
     }
 
     document.getElementById('productModal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeModal(); });
-
     loadProducts();
 </script>
 </body>

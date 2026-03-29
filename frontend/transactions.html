@@ -5,6 +5,42 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>รับ-เบิก สินค้า — Smart Warehouse RFID</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        .item-row {
+            display: flex;
+            gap: 8px;
+            align-items: flex-end;
+            margin-bottom: 10px;
+            background: var(--bg-secondary);
+            padding: 10px 12px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+        }
+        .item-row .form-group { margin-bottom: 0; flex: 1; }
+        .item-row .qty-group { width: 90px; flex-shrink: 0; }
+        .item-row .remove-btn {
+            flex-shrink: 0;
+            width: 32px; height: 32px;
+            background: rgba(239,68,68,0.15);
+            border: 1px solid rgba(239,68,68,0.3);
+            border-radius: var(--radius-sm);
+            color: #ef4444; font-size: 1rem; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            transition: background 0.2s;
+        }
+        .item-row .remove-btn:hover { background: rgba(239,68,68,0.3); }
+        .add-item-btn {
+            width: 100%; margin-top: 4px; padding: 8px;
+            background: rgba(99,102,241,0.08);
+            border: 1px dashed var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--accent-primary); font-size: 0.85rem; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .add-item-btn:hover { background: rgba(99,102,241,0.15); }
+        .items-label { font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+        .auto-tag-badge { font-size: 0.7rem; background: rgba(16,185,129,0.15); color: var(--accent-success); border: 1px solid rgba(16,185,129,0.3); padding: 2px 8px; border-radius: 10px; margin-left: 6px; }
+    </style>
 </head>
 <body>
 <div class="app-layout">
@@ -23,6 +59,9 @@
             <a href="rfid-monitor.html" class="nav-item" data-page="rfid"><span class="nav-icon">📡</span> RFID Monitor</a>
             <span class="nav-section-label">รายงาน</span>
             <a href="transactions.html" class="nav-item" data-page="transactions"><span class="nav-icon">📋</span> รับ-เบิก สินค้า</a>
+            <span class="nav-section-label">บริษัทคู่ค้า</span>
+            <a href="suppliers.html" class="nav-item" data-page="suppliers"><span class="nav-icon">🏭</span> Supplier</a>
+            <a href="customers.html" class="nav-item" data-page="customers"><span class="nav-icon">🏢</span> Customer</a>
         </nav>
         <div class="sidebar-footer">
             <div class="user-info" onclick="logout()">
@@ -38,12 +77,12 @@
             <div class="header-left">
                 <div>
                     <div class="page-title">📋 รับ-เบิก สินค้า</div>
-                    <div class="page-subtitle">ใบสั่งซื้อ (PO) และใบเบิกสินค้า</div>
+                    <div class="page-subtitle">บันทึกการนำสินค้าเข้า (IN) และออก (OUT) คลัง</div>
                 </div>
             </div>
             <div class="header-right">
-                <button class="btn btn-success" onclick="openModal('IN')">⬇️ รับสินค้า (IN)</button>
-                <button class="btn btn-danger" onclick="openModal('OUT')">⬆️ เบิกสินค้า (OUT)</button>
+                <button class="btn btn-success" onclick="openModal('IN')">⬇️ รับสินค้า IN</button>
+                <button class="btn btn-danger" onclick="openModal('OUT')">⬆️ เบิกสินค้า OUT</button>
             </div>
         </header>
 
@@ -56,9 +95,9 @@
                 <div class="filter-row">
                     <div class="input-group" style="max-width:260px;">
                         <span class="input-group-icon">🔍</span>
-                        <input type="text" id="txSearch" class="form-control" placeholder="ค้นหา PO, สินค้า..." oninput="loadTransactions()">
+                        <input type="text" id="txSearch" class="form-control" placeholder="ค้นหา PO, บริษัท..." oninput="loadTransactions()">
                     </div>
-                    <select class="form-control" id="txTypeFilter" style="width:150px;" onchange="loadTransactions()">
+                    <select class="form-control" id="txTypeFilter" style="width:160px;" onchange="loadTransactions()">
                         <option value="">ประเภททั้งหมด</option>
                         <option value="IN">รับเข้า (IN)</option>
                         <option value="OUT">เบิกออก (OUT)</option>
@@ -70,18 +109,17 @@
                         <thead>
                             <tr>
                                 <th>#</th>
-                                <th>เลขที่ PO</th>
                                 <th>ประเภท</th>
-                                <th>สินค้า</th>
-                                <th>RFID Tag</th>
+                                <th>บริษัท</th>
+                                <th>PO / Shipment</th>
+                                <th>Tag</th>
                                 <th>จำนวน</th>
                                 <th>พนักงาน</th>
-                                <th>แหล่งที่มา</th>
                                 <th>วันเวลา</th>
                             </tr>
                         </thead>
                         <tbody id="txBody">
-                            <tr><td colspan="9"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
+                            <tr><td colspan="8"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -90,33 +128,45 @@
     </div>
 </div>
 
-<!-- Add Transaction Modal -->
+<!-- Transaction Modal -->
 <div class="modal-overlay" id="txModal">
-    <div class="modal">
+    <div class="modal" style="max-width:620px;">
         <div class="modal-title" id="txModalTitle">⬇️ รับสินค้าเข้าคลัง</div>
         <div id="txModalAlert" class="alert alert-danger alert-hidden"></div>
         <form id="txForm">
             <input type="hidden" id="txType">
-            <div class="grid-2">
-                <div class="form-group">
-                    <label class="form-label">เลขที่ PO / ใบเบิก</label>
-                    <input type="text" id="poNumber" class="form-control" placeholder="PO-2026-001">
-                </div>
-                <div class="form-group">
-                    <label class="form-label">จำนวน</label>
-                    <input type="number" id="txQty" class="form-control" value="1" min="1">
-                </div>
+
+            <!-- IN: Supplier -->
+            <div class="form-group" id="supplierGroup">
+                <label class="form-label">🏭 Supplier *</label>
+                <select id="txSupplier" class="form-control">
+                    <option value="">-- เลือก Supplier --</option>
+                </select>
+                <small class="text-muted">ระบบจะสร้าง PO &amp; RFID Tag ให้อัตโนมัติ</small>
             </div>
-            <div class="form-group">
-                <label class="form-label">สินค้า *</label>
-                <select id="txProduct" class="form-control" required>
-                    <option value="">-- เลือกสินค้า --</option>
+
+            <!-- OUT: Customer -->
+            <div class="form-group" id="customerGroup" style="display:none;">
+                <label class="form-label">🏢 Customer *</label>
+                <select id="txCustomer" class="form-control">
+                    <option value="">-- เลือก Customer --</option>
+                </select>
+                <small class="text-muted">ระบบจะสร้าง Shipment ให้อัตโนมัติ</small>
+            </div>
+
+            <!-- Dynamic rows -->
+            <div id="itemsLabel" class="items-label">📦 รายการสินค้า</div>
+            <div id="itemsContainer"></div>
+            <button type="button" class="add-item-btn" onclick="addItemRow()">＋ เพิ่มสินค้า</button>
+
+            <!-- Employee -->
+            <div class="form-group" style="margin-top:14px;">
+                <label class="form-label">พนักงาน</label>
+                <select id="txEmployee" class="form-control">
+                    <option value="">-- เลือกพนักงาน --</option>
                 </select>
             </div>
-            <div class="form-group">
-                <label class="form-label">หมายเหตุ</label>
-                <textarea id="txNotes" class="form-control" rows="2" placeholder="หมายเหตุ (ถ้ามี)"></textarea>
-            </div>
+
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeTxModal()">ยกเลิก</button>
                 <button type="submit" class="btn btn-primary" id="txSaveBtn">💾 บันทึก</button>
@@ -132,81 +182,271 @@
     setActiveNav('transactions');
     setupUserInfo();
 
-    let products = [];
+    let cachedProducts = [];
+    let cachedTags = [];
+    let currentModalType = 'IN';
 
-    async function loadProducts() {
-        const res = await apiFetch('/products');
-        if (!res?.success) return;
-        products = res.data;
-        const sel = document.getElementById('txProduct');
-        sel.innerHTML = '<option value="">-- เลือกสินค้า --</option>' +
-            products.map(p => `<option value="${p.id}">${p.sku} — ${p.name}</option>`).join('');
-    }
-
+    // ======= TABLE =======
     async function loadTransactions() {
         const search = document.getElementById('txSearch').value;
-        const type = document.getElementById('txTypeFilter').value;
+        const type   = document.getElementById('txTypeFilter').value;
         let url = '/transactions?limit=100';
         if (search) url += `&search=${encodeURIComponent(search)}`;
-        if (type) url += `&type=${type}`;
+        if (type)   url += `&type=${type}`;
         const res = await apiFetch(url);
         if (!res?.success) return;
         document.getElementById('txCount').textContent = `${res.data.length} รายการ`;
         const tbody = document.getElementById('txBody');
         if (!res.data.length) {
-            tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><span class="icon">📋</span><p>ไม่พบรายการ</p></div></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><span class="icon">📋</span><p>ไม่พบรายการ</p></div></td></tr>';
             return;
         }
-        tbody.innerHTML = res.data.map((t, i) => `
-            <tr>
-                <td class="text-muted" style="font-size:0.75rem;">${t.id}</td>
-                <td class="fw-mono">${t.po_number || '<span class="text-muted">—</span>'}</td>
-                <td>${getTxTypeBadge(t.type)}</td>
-                <td>${t.product_name ? `<strong>${t.product_name}</strong><br><small class="text-muted">${t.sku}</small>` : '<span class="text-muted">—</span>'}</td>
-                <td>${t.tag_code ? `<span class="code-text">${t.tag_code}</span>` : '<span class="text-muted">—</span>'}</td>
+        tbody.innerHTML = res.data.map(t => {
+            const company = t.transaction_type === 'IN' ? t.supplier_name : t.customer_name;
+            const docRef  = t.po_id || t.shipment_id || '—';
+            return `<tr>
+                <td class="text-muted" style="font-size:0.75rem;">${t.transaction_id}</td>
+                <td>${t.transaction_type === 'IN'
+                    ? '<span class="badge badge-in-stock">⬇️ IN</span>'
+                    : '<span class="badge badge-shipped">⬆️ OUT</span>'}</td>
+                <td>${company ? `<strong>${company}</strong>` : '<span class="text-muted">—</span>'}</td>
+                <td class="fw-mono" style="font-size:0.78rem;">${docRef}</td>
+                <td class="fw-mono" style="font-size:0.75rem;">${t.tag_id || '<span class="text-muted">—</span>'}</td>
                 <td class="fw-bold">${t.quantity}</td>
                 <td>${t.employee_name || '<span class="text-muted">—</span>'}</td>
-                <td>
-                    <span class="badge ${t.source === 'rfid_scan' ? 'badge-in-stock' : 'badge-unknown'}">
-                        ${t.source === 'rfid_scan' ? '📡 RFID Auto' : t.source === 'manual' ? '✍️ Manual' : t.source}
-                    </span>
-                </td>
-                <td style="font-size:0.75rem; color:var(--text-secondary);">${formatDate(t.created_at)}</td>
-            </tr>`).join('');
+                <td style="font-size:0.72rem; color:var(--text-secondary);">${formatDate(t.datetime)}</td>
+            </tr>`;
+        }).join('');
     }
 
-    function openModal(type) {
+    // ======= MODAL =======
+    async function openModal(type) {
+        currentModalType = type;
         document.getElementById('txType').value = type;
         document.getElementById('txModalTitle').textContent = type === 'IN' ? '⬇️ รับสินค้าเข้าคลัง' : '⬆️ เบิกสินค้าออก';
         document.getElementById('txForm').reset();
         document.getElementById('txModalAlert').classList.add('alert-hidden');
+        document.getElementById('supplierGroup').style.display = type === 'IN'  ? '' : 'none';
+        document.getElementById('customerGroup').style.display = type === 'OUT' ? '' : 'none';
+
+        await Promise.all([
+            loadSupplierDropdown(),
+            loadCustomerDropdown(),
+            loadProductsCache(),
+            loadTagsCache(),
+            loadEmployeeDropdown()
+        ]);
+
+        document.getElementById('itemsContainer').innerHTML = '';
+        addItemRow();
         document.getElementById('txModal').classList.add('show');
     }
 
-    function closeTxModal() {
-        document.getElementById('txModal').classList.remove('show');
+    // ======= ITEM ROWS =======
+    function addItemRow() {
+        const container = document.getElementById('itemsContainer');
+        const row = document.createElement('div');
+        row.className = 'item-row';
+
+        if (currentModalType === 'IN') {
+            // IN: ชื่อสินค้า + หน่วย + ราคา + Qty
+            row.innerHTML = `
+                <div class="form-group" style="flex:2;">
+                    <label class="form-label" style="font-size:0.75rem;">ชื่อสินค้า <span class="auto-tag-badge">🏷️ Auto Tag & SKU</span></label>
+                    <input type="text" class="form-control item-product-name" placeholder="พิมพ์ชื่อสินค้า..." style="font-size:0.85rem;" required>
+                </div>
+                <div class="form-group" style="width:90px;flex-shrink:0;">
+                    <label class="form-label" style="font-size:0.75rem;">หน่วย</label>
+                    <select class="form-control item-unit" style="font-size:0.82rem;">
+                        <option value="ชิ้น">ชิ้น</option>
+                        <option value="ลัง">ลัง</option>
+                        <option value="กล่อง">กล่อง</option>
+                        <option value="ถุง">ถุง</option>
+                        <option value="แพ็ค">แพ็ค</option>
+                        <option value="ม้วน">ม้วน</option>
+                        <option value="ชุด">ชุด</option>
+                    </select>
+                </div>
+                <div class="form-group qty-group">
+                    <label class="form-label" style="font-size:0.75rem;">ราคา (฿)</label>
+                    <input type="number" class="form-control item-price" value="0" min="0" step="0.01">
+                </div>
+                <div class="form-group qty-group">
+                    <label class="form-label" style="font-size:0.75rem;">จำนวน</label>
+                    <input type="number" class="form-control item-qty" value="1" min="1">
+                </div>
+                <button type="button" class="remove-btn" onclick="removeItemRow(this)" title="ลบ">✕</button>
+            `;
+        } else {
+            // OUT: RFID Tag dropdown + Qty
+            const tagOptions = cachedTags.map(t =>
+                `<option value="${t.tag_id}">${t.tag_id}${t.product_name ? ' — ' + t.product_name : ''}</option>`
+            ).join('');
+            row.innerHTML = `
+                <div class="form-group">
+                    <label class="form-label" style="font-size:0.75rem;">RFID Tag</label>
+                    <select class="form-control item-tag" style="font-size:0.8rem;">
+                        <option value="">-- เลือก Tag (In-Stock) --</option>
+                        ${tagOptions}
+                    </select>
+                </div>
+                <div class="form-group qty-group">
+                    <label class="form-label" style="font-size:0.75rem;">จำนวน</label>
+                    <input type="number" class="form-control item-qty" value="1" min="1">
+                </div>
+                <button type="button" class="remove-btn" onclick="removeItemRow(this)" title="ลบ">✕</button>
+            `;
+        }
+
+        container.appendChild(row);
+        updateRemoveButtons();
     }
 
+    function removeItemRow(btn) {
+        const container = document.getElementById('itemsContainer');
+        if (container.children.length <= 1) return;
+        btn.closest('.item-row').remove();
+        updateRemoveButtons();
+    }
+
+    function updateRemoveButtons() {
+        const rows = document.querySelectorAll('.item-row');
+        rows.forEach(row => {
+            const btn = row.querySelector('.remove-btn');
+            btn.style.opacity = rows.length === 1 ? '0.3' : '1';
+            btn.style.cursor  = rows.length === 1 ? 'not-allowed' : 'pointer';
+        });
+    }
+
+    // ======= DROPDOWNS =======
+    async function loadSupplierDropdown() {
+        const res = await apiFetch('/suppliers');
+        const sel = document.getElementById('txSupplier');
+        sel.innerHTML = '<option value="">-- เลือก Supplier --</option>';
+        if (res?.success) res.data.forEach(s => {
+            sel.innerHTML += `<option value="${s.supplier_id}">${s.supplier_id} — ${s.name}</option>`;
+        });
+    }
+
+    async function loadCustomerDropdown() {
+        const res = await apiFetch('/customers');
+        const sel = document.getElementById('txCustomer');
+        sel.innerHTML = '<option value="">-- เลือก Customer --</option>';
+        if (res?.success) res.data.forEach(c => {
+            sel.innerHTML += `<option value="${c.customer_id}">${c.customer_id} — ${c.name}</option>`;
+        });
+    }
+
+    async function loadProductsCache() {
+        const res = await apiFetch('/products');
+        cachedProducts = res?.success ? res.data : [];
+    }
+
+    async function loadTagsCache() {
+        const res = await apiFetch('/rfid/tags');
+        cachedTags = res?.success ? res.data.filter(t => t.status === 'In-Stock') : [];
+    }
+
+    async function loadEmployeeDropdown() {
+        const res = await apiFetch('/employees');
+        const sel = document.getElementById('txEmployee');
+        sel.innerHTML = '<option value="">-- เลือกพนักงาน --</option>';
+        if (res?.success) res.data.forEach(e => {
+            sel.innerHTML += `<option value="${e.employee_id}">${e.name} (${e.role})</option>`;
+        });
+    }
+
+    function closeTxModal() { document.getElementById('txModal').classList.remove('show'); }
+
+    // ======= SUBMIT =======
     document.getElementById('txForm').addEventListener('submit', async (e) => {
         e.preventDefault();
+        const type        = document.getElementById('txType').value;
+        const supplier_id = document.getElementById('txSupplier').value;
+        const customer_id = document.getElementById('txCustomer').value;
+        const employee_id = document.getElementById('txEmployee').value || null;
+
+        if (type === 'IN'  && !supplier_id) return showAlert('กรุณาเลือก Supplier');
+        if (type === 'OUT' && !customer_id) return showAlert('กรุณาเลือก Customer');
+
+        const rows = document.querySelectorAll('.item-row');
+        const items = Array.from(rows).map(row => {
+            if (type === 'IN') {
+                return {
+                    product_name: row.querySelector('.item-product-name')?.value.trim() || null,
+                    unit:         row.querySelector('.item-unit')?.value || 'ชิ้น',
+                    price:        parseFloat(row.querySelector('.item-price')?.value) || 0,
+                    product_id: null,
+                    tag_id: null,
+                    quantity: parseInt(row.querySelector('.item-qty').value) || 1,
+                    auto_tag: true
+                };
+            } else {
+                return {
+                    product_name: null,
+                    unit:         null,
+                    price:        null,
+                    product_id: null,
+                    tag_id: row.querySelector('.item-tag')?.value || null,
+                    quantity: parseInt(row.querySelector('.item-qty').value) || 1,
+                    auto_tag: false
+                };
+            }
+        });
+
+        // Validate IN rows ต้องใส่ชื่อสินค้า
+        if (type === 'IN') {
+            const empty = items.findIndex(i => !i.product_name);
+            if (empty >= 0) return showAlert(`แถว ${empty + 1}: กรุณาใส่ชื่อสินค้า`);
+        }
+
         const btn = document.getElementById('txSaveBtn');
-        btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
-        const body = {
-            type: document.getElementById('txType').value,
-            po_number: document.getElementById('poNumber').value,
-            product_id: document.getElementById('txProduct').value,
-            quantity: parseInt(document.getElementById('txQty').value),
-            notes: document.getElementById('txNotes').value
-        };
-        const res = await apiFetch('/transactions', { method: 'POST', body: JSON.stringify(body) });
+        btn.disabled = true;
+        let po_id = null, shipment_id = null, successCount = 0, lastMsg = '';
+
+        for (let i = 0; i < items.length; i++) {
+            btn.textContent = `กำลังบันทึก (${i + 1}/${items.length})...`;
+            const body = {
+                transaction_type: type,
+                quantity:     items[i].quantity,
+                tag_id:       items[i].tag_id,
+                product_id:   items[i].product_id,
+                product_name: items[i].product_name,
+                unit:         items[i].unit,
+                price:        items[i].price,
+                auto_tag:     items[i].auto_tag,
+                employee_id,
+                supplier_id: type === 'IN'  ? supplier_id : null,
+                customer_id: type === 'OUT' ? customer_id : null,
+                po_id:       po_id || null,
+                shipment_id: shipment_id || null
+            };
+            const res = await apiFetch('/transactions', { method: 'POST', body: JSON.stringify(body) });
+            if (res?.success) {
+                successCount++;
+                lastMsg = res.message;
+                if (!po_id && res.data?.po_id) po_id = res.data.po_id;
+                if (!shipment_id && res.data?.shipment_id) shipment_id = res.data.shipment_id;
+            } else {
+                showAlert(`แถว ${i + 1}: ${res?.message || 'เกิดข้อผิดพลาด'}`);
+                btn.disabled = false; btn.textContent = '💾 บันทึก';
+                return;
+            }
+        }
+
         btn.disabled = false; btn.textContent = '💾 บันทึก';
-        if (res?.success) { closeTxModal(); showToast(res.message, 'success'); loadTransactions(); }
-        else { const a = document.getElementById('txModalAlert'); a.textContent = res?.message || 'เกิดข้อผิดพลาด'; a.classList.remove('alert-hidden'); }
+        closeTxModal();
+        showToast(`✅ บันทึก ${successCount} รายการสำเร็จ | ${lastMsg}`, 'success');
+        loadTransactions();
     });
 
-    document.getElementById('txModal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeTxModal(); });
+    function showAlert(msg) {
+        const a = document.getElementById('txModalAlert');
+        a.textContent = msg; a.classList.remove('alert-hidden');
+    }
 
-    loadProducts(); loadTransactions();
+    document.getElementById('txModal').addEventListener('click', (e) => { if (e.target === e.currentTarget) closeTxModal(); });
+    loadTransactions();
 </script>
 </body>
 </html>

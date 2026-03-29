@@ -18,12 +18,18 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // API Routes
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/products', require('./routes/products'));
-app.use('/api/locations', require('./routes/locations'));
-app.use('/api/rfid', require('./routes/rfid'));
-app.use('/api/transactions', require('./routes/transactions'));
-app.use('/api/dashboard', require('./routes/dashboard'));
+app.use('/api/auth',            require('./routes/auth'));
+app.use('/api/products',        require('./routes/products'));
+app.use('/api/locations',       require('./routes/locations'));
+app.use('/api/rfid',            require('./routes/rfid'));
+app.use('/api/transactions',    require('./routes/transactions'));
+app.use('/api/dashboard',       require('./routes/dashboard'));
+// Master data
+app.use('/api/suppliers',       require('./routes/suppliers'));
+app.use('/api/customers',       require('./routes/customers'));
+app.use('/api/employees',       require('./routes/employees'));
+app.use('/api/purchase-orders', require('./routes/purchase_orders'));
+app.use('/api/shipments',       require('./routes/shipments'));
 
 // Health check
 app.get('/api/health', (req, res) => {

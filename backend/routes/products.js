@@ -3,80 +3,76 @@ const router = express.Router();
 const db = require('../db');
 const { verifyToken } = require('../middleware/auth');
 
-// GET /api/products - List all products with RFID tag counts
+// GET /api/products
 router.get('/', verifyToken, async (req, res) => {
     try {
-        const { search, status } = req.query;
+        const { search } = req.query;
         let query = `
-            SELECT 
-                p.*,
-                COUNT(rt.id) AS total_tags,
-                SUM(CASE WHEN rt.status = 'In-Stock' THEN 1 ELSE 0 END) AS in_stock,
-                SUM(CASE WHEN rt.status = 'Moving' THEN 1 ELSE 0 END) AS moving,
-                SUM(CASE WHEN rt.status = 'Shipped' THEN 1 ELSE 0 END) AS shipped
+            SELECT p.*,
+                   COALESCE(SUM(CASE WHEN t.transaction_type = 'IN'  THEN t.quantity ELSE 0 END), 0)
+                 - COALESCE(SUM(CASE WHEN t.transaction_type = 'OUT' THEN t.quantity ELSE 0 END), 0)
+                   AS stock_count
             FROM products p
-            LEFT JOIN rfid_tags rt ON p.id = rt.product_id
-            WHERE p.is_active = 1
+            LEFT JOIN rfid_tags rt  ON rt.product_id = p.product_id
+            LEFT JOIN transactions t ON t.tag_id      = rt.tag_id
         `;
         const params = [];
         if (search) {
-            query += ' AND (p.sku LIKE ? OR p.name LIKE ?)';
+            query += ' WHERE p.name LIKE ? OR p.product_id LIKE ?';
             params.push(`%${search}%`, `%${search}%`);
         }
-        query += ' GROUP BY p.id ORDER BY p.created_at DESC';
+        query += ' GROUP BY p.product_id ORDER BY p.name';
         const [rows] = await db.query(query, params);
         res.json({ success: true, data: rows });
     } catch (err) {
-        console.error(err);
         res.status(500).json({ success: false, message: err.message });
     }
 });
 
-// GET /api/products/:id - Get single product
+// GET /api/products/:id
 router.get('/:id', verifyToken, async (req, res) => {
     try {
-        const [rows] = await db.query('SELECT * FROM products WHERE id = ?', [req.params.id]);
-        if (!rows.length) return res.status(404).json({ success: false, message: 'Not found' });
+        const [rows] = await db.query('SELECT * FROM products WHERE product_id = ?', [req.params.id]);
+        if (!rows.length) return res.status(404).json({ success: false, message: 'ไม่พบสินค้า' });
         res.json({ success: true, data: rows[0] });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
 });
 
-// POST /api/products - Create product
+// POST /api/products
 router.post('/', verifyToken, async (req, res) => {
-    const { sku, name, description, reorder_point, price, unit } = req.body;
-    if (!sku || !name) return res.status(400).json({ success: false, message: 'SKU and name required' });
-    try {
-        const [result] = await db.query(
-            'INSERT INTO products (sku, name, description, reorder_point, price, unit) VALUES (?, ?, ?, ?, ?, ?)',
-            [sku, name, description, reorder_point || 10, price || 0, unit || 'pcs']
-        );
-        res.status(201).json({ success: true, data: { id: result.insertId }, message: 'เพิ่มสินค้าสำเร็จ' });
-    } catch (err) {
-        if (err.code === 'ER_DUP_ENTRY') return res.status(409).json({ success: false, message: 'SKU already exists' });
-        res.status(500).json({ success: false, message: err.message });
-    }
-});
-
-// PUT /api/products/:id - Update product
-router.put('/:id', verifyToken, async (req, res) => {
-    const { name, description, reorder_point, price, unit } = req.body;
+    const { product_id, name, reorder_point, price } = req.body;
+    if (!product_id || !name) return res.status(400).json({ success: false, message: 'product_id and name required' });
     try {
         await db.query(
-            'UPDATE products SET name=?, description=?, reorder_point=?, price=?, unit=? WHERE id=?',
-            [name, description, reorder_point, price, unit, req.params.id]
+            'INSERT INTO products (product_id, name, reorder_point, price) VALUES (?, ?, ?, ?)',
+            [product_id, name, reorder_point || 10, price || 0]
         );
-        res.json({ success: true, message: 'อัพเดทสินค้าสำเร็จ' });
+        res.status(201).json({ success: true, message: 'เพิ่มสินค้าสำเร็จ' });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });
     }
 });
 
-// DELETE /api/products/:id - Soft delete
+// PUT /api/products/:id
+router.put('/:id', verifyToken, async (req, res) => {
+    const { name, reorder_point, price } = req.body;
+    try {
+        await db.query(
+            'UPDATE products SET name = ?, reorder_point = ?, price = ? WHERE product_id = ?',
+            [name, reorder_point, price, req.params.id]
+        );
+        res.json({ success: true, message: 'อัปเดตสินค้าสำเร็จ' });
+    } catch (err) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+});
+
+// DELETE /api/products/:id
 router.delete('/:id', verifyToken, async (req, res) => {
     try {
-        await db.query('UPDATE products SET is_active = 0 WHERE id = ?', [req.params.id]);
+        await db.query('DELETE FROM products WHERE product_id = ?', [req.params.id]);
         res.json({ success: true, message: 'ลบสินค้าสำเร็จ' });
     } catch (err) {
         res.status(500).json({ success: false, message: err.message });

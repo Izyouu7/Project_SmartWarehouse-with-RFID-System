@@ -1,115 +1,129 @@
--- Smart Warehouse RFID System Database Schema
--- Created: 2026-03-09
+-- Smart Warehouse RFID System — Rental Warehouse Schema
+-- Updated: 2026-03-29
 
 CREATE DATABASE IF NOT EXISTS warehouse_rfid CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE warehouse_rfid;
 
 -- =====================================================
--- Table: users (ผู้ใช้ระบบ)
+-- Table: users (สำหรับ Login ระบบ)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS users (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    username VARCHAR(50) NOT NULL UNIQUE,
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    username      VARCHAR(50) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    full_name VARCHAR(100),
-    role ENUM('admin', 'operator', 'viewer') DEFAULT 'operator',
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    full_name     VARCHAR(100),
+    role          ENUM('admin', 'operator', 'viewer') DEFAULT 'operator',
+    is_active     BOOLEAN DEFAULT TRUE,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- =====================================================
+-- Table: suppliers (บริษัทผู้จัดหาสินค้า — นำสินค้าเข้า)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS suppliers (
+    supplier_id CHAR(5) PRIMARY KEY,
+    name        VARCHAR(50) NOT NULL,
+    phone       CHAR(10)
+);
+
+-- =====================================================
+-- Table: customers (ลูกค้า — นำสินค้าออก)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS customers (
+    customer_id CHAR(8) PRIMARY KEY,
+    name        VARCHAR(50) NOT NULL,
+    phone       CHAR(10)
+);
+
+-- =====================================================
+-- Table: employees (พนักงานคลังสินค้า)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS employees (
+    employee_id CHAR(5) PRIMARY KEY,
+    name        VARCHAR(50) NOT NULL,
+    role        VARCHAR(20)
 );
 
 -- =====================================================
 -- Table: products (ข้อมูลสินค้า)
--- รหัสสินค้า (SKU), ชื่อสินค้า, จำนวนขั้นต่ำที่ต้องสั่งซื้อ (Reorder Point), ราคา
 -- =====================================================
 CREATE TABLE IF NOT EXISTS products (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    sku VARCHAR(50) NOT NULL UNIQUE,
-    name VARCHAR(200) NOT NULL,
-    description TEXT,
+    product_id    CHAR(10) PRIMARY KEY,
+    name          VARCHAR(50) NOT NULL,
+    unit          VARCHAR(20) DEFAULT 'ชิ้น',
     reorder_point INT DEFAULT 10,
-    price DECIMAL(10, 2) DEFAULT 0.00,
-    unit VARCHAR(20) DEFAULT 'pcs',
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    price         DECIMAL(10, 2) DEFAULT 0.00
 );
 
 -- =====================================================
--- Table: locations (ข้อมูลตำแหน่งจัดเก็บ)
--- รหัสโซน, รหัสชั้นวาง (Shelf ID), ความจุที่รับได้
+-- Table: locations (ตำแหน่งชั้นวาง)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS locations (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    zone_code VARCHAR(20) NOT NULL,
-    shelf_id VARCHAR(20) NOT NULL,
-    description VARCHAR(200),
-    capacity INT DEFAULT 100,
-    current_count INT DEFAULT 0,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    UNIQUE KEY unique_zone_shelf (zone_code, shelf_id)
+    shelf_id CHAR(6) PRIMARY KEY,
+    zone_id  CHAR(8)
 );
 
 -- =====================================================
--- Table: rfid_tags (ข้อมูลแท็ก RFID และสถานะ)
--- รหัส RFID Tag, สถานะปัจจุบัน (In-Stock/Moving/Shipped)
+-- Table: rfid_tags (แท็ก RFID และสถานะปัจจุบัน)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS rfid_tags (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    tag_code VARCHAR(100) NOT NULL UNIQUE,
-    product_id INT,
-    location_id INT,
-    status ENUM('In-Stock', 'Moving', 'Shipped', 'Unknown') DEFAULT 'Unknown',
-    last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    signal_strength INT DEFAULT 0,
-    reader_id VARCHAR(50) DEFAULT NULL,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
-    FOREIGN KEY (location_id) REFERENCES locations(id) ON DELETE SET NULL
+    tag_id      CHAR(8) PRIMARY KEY,
+    product_id  CHAR(10),
+    shelf_id    CHAR(6),
+    status      ENUM('Pending', 'In-Stock', 'Moving', 'Shipped', 'Unknown') DEFAULT 'Unknown',
+    last_update DATETIME,
+
+    FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE SET NULL,
+    FOREIGN KEY (shelf_id)   REFERENCES locations(shelf_id)  ON DELETE SET NULL
 );
 
 -- =====================================================
--- Table: transactions (ข้อมูลการรับเข้าและเบิกออก)
--- ใบสั่งซื้อ (PO), ใบเบิกสินค้า, วันเวลาที่สินค้าเข้า-ออก, พนักงานที่รับผิดชอบ
+-- Table: purchase_orders (ใบสั่งซื้อ — สินค้าเข้า IN)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS purchase_orders (
+    po_id       CHAR(10) PRIMARY KEY,
+    supplier_id CHAR(5),
+    order_date  DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(supplier_id) ON DELETE SET NULL
+);
+
+-- =====================================================
+-- Table: shipments (ใบส่งสินค้า — สินค้าออก OUT)
+-- =====================================================
+CREATE TABLE IF NOT EXISTS shipments (
+    shipment_id CHAR(8) PRIMARY KEY,
+    customer_id CHAR(8),
+    ship_date   DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id) ON DELETE SET NULL
+);
+
+-- =====================================================
+-- Table: transactions (รายการรับเข้า / เบิกออก)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS transactions (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    po_number VARCHAR(50),
-    type ENUM('IN', 'OUT') NOT NULL,
-    product_id INT,
-    rfid_tag_id INT,
-    quantity INT DEFAULT 1,
-    from_location_id INT,
-    to_location_id INT,
-    employee_id INT,
-    notes TEXT,
-    source ENUM('manual', 'rfid_scan', 'system') DEFAULT 'manual',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
-    FOREIGN KEY (rfid_tag_id) REFERENCES rfid_tags(id) ON DELETE SET NULL,
-    FOREIGN KEY (from_location_id) REFERENCES locations(id) ON DELETE SET NULL,
-    FOREIGN KEY (to_location_id) REFERENCES locations(id) ON DELETE SET NULL,
-    FOREIGN KEY (employee_id) REFERENCES users(id) ON DELETE SET NULL
-);
+    transaction_id   INT AUTO_INCREMENT PRIMARY KEY,
+    transaction_type ENUM('IN', 'OUT') NOT NULL,
+    datetime         DATETIME DEFAULT CURRENT_TIMESTAMP,
+    quantity         INT DEFAULT 1,
+    employee_id      CHAR(5),
+    tag_id           CHAR(8),
+    po_id            CHAR(10),
+    shipment_id      CHAR(8),
 
--- =====================================================
--- Table: rfid_scan_logs (ประวัติการสแกน RFID ทั้งหมด)
--- =====================================================
-CREATE TABLE IF NOT EXISTS rfid_scan_logs (
-    id INT AUTO_INCREMENT PRIMARY KEY,
-    tag_code VARCHAR(100) NOT NULL,
-    status VARCHAR(50),
-    location_hint VARCHAR(100),
-    reader_id VARCHAR(50),
-    signal_strength INT DEFAULT 0,
-    raw_data JSON,
-    scanned_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_tag_code (tag_code),
-    INDEX idx_scanned_at (scanned_at)
+    FOREIGN KEY (employee_id)  REFERENCES employees(employee_id)       ON DELETE SET NULL,
+    FOREIGN KEY (tag_id)       REFERENCES rfid_tags(tag_id)            ON DELETE SET NULL,
+    FOREIGN KEY (po_id)        REFERENCES purchase_orders(po_id)       ON DELETE SET NULL,
+    FOREIGN KEY (shipment_id)  REFERENCES shipments(shipment_id)       ON DELETE SET NULL,
+
+    -- IN ต้องมี po_id / OUT ต้องมี shipment_id / ไม่มีทั้งคู่ก็ได้ (RFID auto)
+    CONSTRAINT chk_transaction_logic CHECK (
+        (po_id IS NOT NULL AND shipment_id IS NULL)
+        OR (po_id IS NULL AND shipment_id IS NOT NULL)
+        OR (po_id IS NULL AND shipment_id IS NULL)
+    )
 );
 
 -- =====================================================
@@ -117,60 +131,88 @@ CREATE TABLE IF NOT EXISTS rfid_scan_logs (
 -- Password: admin123 (bcrypt hashed)
 -- =====================================================
 INSERT INTO users (username, password_hash, full_name, role) VALUES
-('admin', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'System Administrator', 'admin'),
-('operator1', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'พนักงาน คลังสินค้า', 'operator')
-ON DUPLICATE KEY UPDATE id=id;
+('admin',     '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'System Administrator', 'admin'),
+('operator1', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'พนักงาน คลังสินค้า',    'operator')
+ON DUPLICATE KEY UPDATE id = id;
 
 -- =====================================================
--- Seed Data: Sample products
+-- Seed Data: Suppliers
 -- =====================================================
-INSERT INTO products (sku, name, description, reorder_point, price, unit) VALUES
-('SKU-001', 'สายไฟ AWG 22 (100m)', 'สายไฟมาตรฐาน AWG 22 ความยาว 100 เมตร', 5, 350.00, 'ม้วน'),
-('SKU-002', 'บอร์ด Raspberry Pi 4B', 'Raspberry Pi 4 Model B 4GB RAM', 3, 1850.00, 'ชิ้น'),
-('SKU-003', 'แท็ก RFID UHF Passive', 'RFID Tag UHF 860-960 MHz Passive', 50, 15.00, 'ชิ้น'),
-('SKU-004', 'กล่องพลาสติก ABS ขนาด A4', 'กล่องพลาสติก ABS กันน้ำ ขนาด A4', 20, 120.00, 'ชิ้น'),
-('SKU-005', 'อะแดปเตอร์ 12V 5A', 'Power Adapter 12V 5A DC', 10, 280.00, 'ตัว'),
-('SKU-006', 'เซ็นเซอร์ IR ระยะไกล', 'Infrared Sensor Module Long Range', 15, 45.00, 'ชิ้น'),
-('SKU-007', 'ชั้นวางเหล็ก 5 ชั้น', 'ชั้นวางเหล็กสีเทา 5 ชั้น 180x90cm', 2, 2500.00, 'ตัว'),
-('SKU-008', 'เทปกาวสองหน้า (10m)', 'เทปกาวสองหน้าอุตสาหกรรม 10 เมตร', 30, 55.00, 'ม้วน')
-ON DUPLICATE KEY UPDATE name=VALUES(name);
+INSERT INTO suppliers (supplier_id, name, phone) VALUES
+('S0001', 'บริษัท อิเล็กทรอนิกส์ไทย จำกัด', '0812345678'),
+('S0002', 'บริษัท อาร์เอฟไอดี โซลูชัน จำกัด', '0898765432')
+ON DUPLICATE KEY UPDATE name = name;
 
 -- =====================================================
--- Seed Data: Sample locations
+-- Seed Data: Customers
 -- =====================================================
-INSERT INTO locations (zone_code, shelf_id, description, capacity, current_count) VALUES
-('A', 'A-01', 'โซน A ชั้นที่ 1 - สินค้าอิเล็กทรอนิกส์', 50, 12),
-('A', 'A-02', 'โซน A ชั้นที่ 2 - สินค้าอิเล็กทรอนิกส์', 50, 8),
-('A', 'A-03', 'โซน A ชั้นที่ 3 - สินค้าอิเล็กทรอนิกส์', 50, 0),
-('B', 'B-01', 'โซน B ชั้นที่ 1 - อะไหล่ทั่วไป', 100, 45),
-('B', 'B-02', 'โซน B ชั้นที่ 2 - อะไหล่ทั่วไป', 100, 30),
-('C', 'C-01', 'โซน C ชั้นที่ 1 - สินค้าขนาดใหญ่', 20, 5),
-('C', 'C-02', 'โซน C ชั้นที่ 2 - สินค้าขนาดใหญ่', 20, 3),
-('D', 'D-01', 'โซน D - พื้นที่พักสินค้าชั่วคราว', 200, 0)
-ON DUPLICATE KEY UPDATE description=VALUES(description);
+INSERT INTO customers (customer_id, name, phone) VALUES
+('C0000001', 'บริษัท เทคสตาร์ จำกัด',      '0811112222'),
+('C0000002', 'บริษัท อินโนเวท คอร์ป จำกัด', '0833334444')
+ON DUPLICATE KEY UPDATE name = name;
 
 -- =====================================================
--- Seed Data: Sample RFID tags
+-- Seed Data: Employees
 -- =====================================================
-INSERT INTO rfid_tags (tag_code, product_id, location_id, status, reader_id) VALUES
-('RFID-A01-001', 1, 1, 'In-Stock', 'READER-A'),
-('RFID-A01-002', 1, 1, 'In-Stock', 'READER-A'),
-('RFID-A02-001', 2, 2, 'In-Stock', 'READER-A'),
-('RFID-B01-001', 3, 4, 'In-Stock', 'READER-B'),
-('RFID-B01-002', 3, 4, 'In-Stock', 'READER-B'),
-('RFID-B01-003', 4, 4, 'Moving', 'READER-B'),
-('RFID-C01-001', 7, 6, 'In-Stock', 'READER-C'),
-('RFID-OUT-001', 5, NULL, 'Shipped', 'READER-D'),
-('RFID-OUT-002', 6, NULL, 'Shipped', 'READER-D'),
-('RFID-NEW-001', 8, NULL, 'Unknown', NULL)
-ON DUPLICATE KEY UPDATE status=VALUES(status);
+INSERT INTO employees (employee_id, name, role) VALUES
+('E0001', 'สมชาย ใจดี',   'operator'),
+('E0002', 'สมหญิง รักงาน', 'operator')
+ON DUPLICATE KEY UPDATE name = name;
 
 -- =====================================================
--- Seed Data: Sample transactions
+-- Seed Data: Products
 -- =====================================================
-INSERT INTO transactions (po_number, type, product_id, quantity, employee_id, notes, source) VALUES
-('PO-2026-001', 'IN', 1, 10, 1, 'รับสินค้าจาก Supplier A', 'manual'),
-('PO-2026-002', 'IN', 2, 5, 1, 'รับสินค้าจาก Supplier B', 'manual'),
-('PO-2026-003', 'IN', 3, 100, 2, 'รับสินค้า RFID Tags ล็อตใหม่', 'manual'),
-('OUT-2026-001', 'OUT', 5, 3, 2, 'เบิกสินค้าสำหรับโปรเจค RPI-01', 'manual'),
-('OUT-2026-002', 'OUT', 6, 5, 2, 'เบิกสำหรับฝ่ายซ่อมบำรุง', 'rfid_scan');
+INSERT INTO products (product_id, name, reorder_point, price) VALUES
+('PRD0000001', 'สายไฟ AWG 22 (100m)',       5,  350.00),
+('PRD0000002', 'บอร์ด Raspberry Pi 4B',     3, 1850.00),
+('PRD0000003', 'แท็ก RFID UHF Passive',    50,   15.00),
+('PRD0000004', 'กล่องพลาสติก ABS ขนาด A4', 20,  120.00),
+('PRD0000005', 'อะแดปเตอร์ 12V 5A',        10,  280.00)
+ON DUPLICATE KEY UPDATE name = name;
+
+-- =====================================================
+-- Seed Data: Locations
+-- =====================================================
+INSERT INTO locations (shelf_id, zone_id) VALUES
+('A-01', 'ZONE-A'),
+('A-02', 'ZONE-A'),
+('B-01', 'ZONE-B'),
+('B-02', 'ZONE-B'),
+('C-01', 'ZONE-C')
+ON DUPLICATE KEY UPDATE zone_id = zone_id;
+
+-- =====================================================
+-- Seed Data: RFID Tags
+-- =====================================================
+INSERT INTO rfid_tags (tag_id, product_id, shelf_id, status, last_update) VALUES
+('TAG00001', 'PRD0000001', 'A-01', 'In-Stock', NOW()),
+('TAG00002', 'PRD0000001', 'A-01', 'In-Stock', NOW()),
+('TAG00003', 'PRD0000002', 'A-02', 'In-Stock', NOW()),
+('TAG00004', 'PRD0000003', 'B-01', 'In-Stock', NOW()),
+('TAG00005', 'PRD0000005', NULL,   'Shipped',  NOW())
+ON DUPLICATE KEY UPDATE status = VALUES(status);
+
+-- =====================================================
+-- Seed Data: Purchase Orders
+-- =====================================================
+INSERT INTO purchase_orders (po_id, supplier_id, order_date) VALUES
+('PO2026001', 'S0001', '2026-03-01 09:00:00'),
+('PO2026002', 'S0002', '2026-03-15 10:30:00')
+ON DUPLICATE KEY UPDATE po_id = po_id;
+
+-- =====================================================
+-- Seed Data: Shipments
+-- =====================================================
+INSERT INTO shipments (shipment_id, customer_id, ship_date) VALUES
+('SH000001', 'C0000001', '2026-03-20 14:00:00'),
+('SH000002', 'C0000002', '2026-03-25 11:00:00')
+ON DUPLICATE KEY UPDATE shipment_id = shipment_id;
+
+-- =====================================================
+-- Seed Data: Transactions
+-- =====================================================
+INSERT INTO transactions (transaction_type, quantity, employee_id, tag_id, po_id, shipment_id) VALUES
+('IN',  10, 'E0001', 'TAG00001', 'PO2026001', NULL),
+('IN',   5, 'E0001', 'TAG00003', 'PO2026002', NULL),
+('OUT',  3, 'E0002', 'TAG00005', NULL, 'SH000001')
+ON DUPLICATE KEY UPDATE transaction_id = transaction_id;

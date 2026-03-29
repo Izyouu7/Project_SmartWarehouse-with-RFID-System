@@ -13,45 +13,31 @@
     <aside class="sidebar">
         <a href="dashboard.html" class="sidebar-brand">
             <div class="brand-icon">📡</div>
-            <div>
-                <div class="brand-name">Smart Warehouse</div>
-                <div class="brand-sub">RFID System</div>
-            </div>
+            <div><div class="brand-name">Smart Warehouse</div><div class="brand-sub">RFID System</div></div>
         </a>
         <nav class="sidebar-nav">
             <span class="nav-section-label">หน้าหลัก</span>
-            <a href="dashboard.html" class="nav-item" data-page="dashboard">
-                <span class="nav-icon">📊</span> Dashboard
-            </a>
+            <a href="dashboard.html" class="nav-item" data-page="dashboard"><span class="nav-icon">📊</span> Dashboard</a>
             <span class="nav-section-label">คลังสินค้า</span>
-            <a href="inventory.html" class="nav-item" data-page="inventory">
-                <span class="nav-icon">📦</span> สินค้า &amp; คลัง
-            </a>
-            <a href="locations.html" class="nav-item" data-page="locations">
-                <span class="nav-icon">🗺️</span> โซน &amp; ชั้นวาง
-            </a>
+            <a href="inventory.html" class="nav-item" data-page="inventory"><span class="nav-icon">📦</span> สินค้า &amp; คลัง</a>
+            <a href="locations.html" class="nav-item" data-page="locations"><span class="nav-icon">🗺️</span> โซน &amp; ชั้นวาง</a>
             <span class="nav-section-label">RFID</span>
-            <a href="rfid-monitor.html" class="nav-item" data-page="rfid">
-                <span class="nav-icon">📡</span> RFID Monitor
-            </a>
+            <a href="rfid-monitor.html" class="nav-item" data-page="rfid"><span class="nav-icon">📡</span> RFID Monitor</a>
             <span class="nav-section-label">รายงาน</span>
-            <a href="transactions.html" class="nav-item" data-page="transactions">
-                <span class="nav-icon">📋</span> รับ-เบิก สินค้า
-            </a>
+            <a href="transactions.html" class="nav-item" data-page="transactions"><span class="nav-icon">📋</span> รับ-เบิก สินค้า</a>
+            <span class="nav-section-label">บริษัทคู่ค้า</span>
+            <a href="suppliers.html" class="nav-item" data-page="suppliers"><span class="nav-icon">🏭</span> Supplier</a>
+            <a href="customers.html" class="nav-item" data-page="customers"><span class="nav-icon">🏢</span> Customer</a>
         </nav>
         <div class="sidebar-footer">
             <div class="user-info" onclick="logout()">
                 <div class="user-avatar" id="sidebarUserAvatar">A</div>
-                <div>
-                    <div class="user-name" id="sidebarUserName">Loading...</div>
-                    <div class="user-role" id="sidebarUserRole">—</div>
-                </div>
+                <div><div class="user-name" id="sidebarUserName">Loading...</div><div class="user-role" id="sidebarUserRole">—</div></div>
                 <span style="margin-left:auto; color:var(--text-muted); font-size:0.8rem;">⏏️</span>
             </div>
         </div>
     </aside>
 
-    <!-- Main Content -->
     <div class="main-content">
         <header class="header">
             <div class="header-left">
@@ -64,9 +50,6 @@
                 <div class="status-badge online" id="serverStatus">
                     <div class="pulse-dot"></div> Server Online
                 </div>
-                <div class="status-badge" id="rfidStatus" style="background: rgba(245,158,11,0.1); color: var(--accent-warning); border-color: rgba(245,158,11,0.3);">
-                    <div class="pulse-dot"></div> RFID Standby
-                </div>
             </div>
         </header>
 
@@ -75,78 +58,47 @@
             <div class="stat-grid" id="statGrid">
                 <div class="stat-card blue">
                     <div class="stat-icon blue">📦</div>
-                    <div>
-                        <div class="stat-value" id="statProducts">—</div>
-                        <div class="stat-label">สินค้าทั้งหมด</div>
-                    </div>
+                    <div><div class="stat-value" id="statProducts">—</div><div class="stat-label">สินค้าทั้งหมด</div></div>
                 </div>
                 <div class="stat-card green">
                     <div class="stat-icon green">✅</div>
-                    <div>
-                        <div class="stat-value" id="statInStock">—</div>
-                        <div class="stat-label">In-Stock</div>
-                    </div>
-                </div>
-                <div class="stat-card yellow">
-                    <div class="stat-icon yellow">🚚</div>
-                    <div>
-                        <div class="stat-value" id="statMoving">—</div>
-                        <div class="stat-label">Moving</div>
-                    </div>
+                    <div><div class="stat-value" id="statInStock">—</div><div class="stat-label">In-Stock (Tags)</div></div>
                 </div>
                 <div class="stat-card purple">
                     <div class="stat-icon purple">✈️</div>
-                    <div>
-                        <div class="stat-value" id="statShipped">—</div>
-                        <div class="stat-label">Shipped</div>
-                    </div>
+                    <div><div class="stat-value" id="statShipped">—</div><div class="stat-label">Shipped</div></div>
+                </div>
+                <div class="stat-card yellow">
+                    <div class="stat-icon yellow">📋</div>
+                    <div><div class="stat-value" id="statTxToday">—</div><div class="stat-label">รายการวันนี้</div></div>
+                </div>
+                <div class="stat-card blue">
+                    <div class="stat-icon blue">🏭</div>
+                    <div><div class="stat-value" id="statSuppliers">—</div><div class="stat-label">Suppliers</div></div>
+                </div>
+                <div class="stat-card green">
+                    <div class="stat-icon green">🏢</div>
+                    <div><div class="stat-value" id="statCustomers">—</div><div class="stat-label">Customers</div></div>
                 </div>
             </div>
 
-            <!-- Charts + Recent Scans -->
+            <!-- Charts -->
             <div class="grid-2" style="margin-bottom: 20px;">
-                <!-- Chart -->
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">📈 การเคลื่อนไหวสินค้า (7 วัน)</div>
-                    </div>
-                    <div class="chart-container">
-                        <canvas id="txChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- RFID Status Donut -->
                 <div class="card">
                     <div class="card-header">
                         <div class="card-title">📡 สถานะ RFID Tags</div>
                         <span class="text-muted" id="totalTags" style="font-size:0.82rem;">— tags</span>
                     </div>
-                    <div class="chart-container">
-                        <canvas id="statusChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Recent Scans + Low Stock -->
-            <div class="grid-2">
-                <!-- Recent RFID Scans -->
-                <div class="card">
-                    <div class="card-header">
-                        <div class="card-title">📡 การสแกน RFID ล่าสุด</div>
-                        <a href="rfid-monitor.html" class="btn btn-secondary btn-sm">ดูทั้งหมด →</a>
-                    </div>
-                    <div class="scan-feed" id="scanFeed">
-                        <div class="loading-overlay"><div class="spinner"></div> กำลังโหลด...</div>
-                    </div>
+                    <div class="chart-container"><canvas id="statusChart"></canvas></div>
                 </div>
 
-                <!-- Low Stock Alert -->
+                <!-- Recent Transactions -->
                 <div class="card">
                     <div class="card-header">
-                        <div class="card-title">⚠️ สินค้าใกล้หมด</div>
-                        <a href="inventory.html" class="btn btn-secondary btn-sm">จัดการสินค้า →</a>
+                        <div class="card-title">📋 รายการล่าสุด</div>
+                        <a href="transactions.html" class="btn btn-secondary btn-sm">ดูทั้งหมด →</a>
                     </div>
-                    <div id="lowStockList">
+                    <div id="recentTxList">
                         <div class="loading-overlay"><div class="spinner"></div> กำลังโหลด...</div>
                     </div>
                 </div>
@@ -156,116 +108,77 @@
 </div>
 
 <div class="toast-container" id="toastContainer"></div>
-
 <script src="js/api.js"></script>
 <script>
-    if (!requireAuth()) { /* redirect handled */ }
+    if (!requireAuth()) {}
     setActiveNav('dashboard');
     setupUserInfo();
 
-    let txChart, statusChart;
+    let statusChart;
 
     async function loadDashboard() {
         const data = await apiFetch('/dashboard/stats');
         if (!data?.success) return;
         const d = data.data;
 
-        // Stats
-        document.getElementById('statProducts').textContent = formatNumber(d.products);
-        document.getElementById('statInStock').textContent = formatNumber(d.tags.in_stock);
-        document.getElementById('statMoving').textContent = formatNumber(d.tags.moving);
-        document.getElementById('statShipped').textContent = formatNumber(d.tags.shipped);
-        document.getElementById('totalTags').textContent = `${formatNumber(d.tags.total_tags)} tags`;
-        document.getElementById('lastUpdate').textContent = 'อัพเดทล่าสุด: ' + formatDate(new Date().toISOString());
+        document.getElementById('statProducts').textContent   = formatNumber(d.total_products);
+        document.getElementById('statInStock').textContent    = formatNumber(d.in_stock);
+        document.getElementById('statShipped').textContent    = formatNumber(d.shipped);
+        document.getElementById('statTxToday').textContent    = formatNumber(d.tx_today);
+        document.getElementById('statSuppliers').textContent  = formatNumber(d.total_suppliers);
+        document.getElementById('statCustomers').textContent  = formatNumber(d.total_customers);
+        document.getElementById('totalTags').textContent      = `${formatNumber(d.total_tags)} tags`;
+        document.getElementById('lastUpdate').textContent     = 'อัพเดทล่าสุด: ' + formatDate(new Date().toISOString());
 
-        // Scan feed
-        const feed = document.getElementById('scanFeed');
-        if (d.recent_scans.length === 0) {
-            feed.innerHTML = '<div class="empty-state"><span class="icon">📡</span><p>ยังไม่มีการสแกน</p></div>';
+        // Recent transactions
+        const list = document.getElementById('recentTxList');
+        if (!d.recent_transactions?.length) {
+            list.innerHTML = '<div class="empty-state"><span class="icon">📋</span><p>ยังไม่มีรายการ</p></div>';
         } else {
-            feed.innerHTML = d.recent_scans.map(s => `
-                <div class="scan-item">
-                    <span class="scan-tag">${s.tag_code}</span>
-                    <span class="scan-product">${s.product_name || '<span class="text-muted">ไม่ทราบสินค้า</span>'}</span>
-                    ${getStatusBadge(s.status)}
-                    <span class="scan-time">${formatDate(s.scanned_at)}</span>
-                </div>`).join('');
+            list.innerHTML = `<div class="table-container"><table>
+                <thead><tr><th>ประเภท</th><th>สินค้า</th><th>บริษัท</th><th>พนักงาน</th><th>เวลา</th></tr></thead>
+                <tbody>${d.recent_transactions.map(t => `<tr>
+                    <td>${getTxTypeBadge(t.transaction_type)}</td>
+                    <td>${t.product_name || '<span class="text-muted">—</span>'}</td>
+                    <td style="font-size:0.78rem;">${t.supplier_name || t.customer_name || '<span class="text-muted">—</span>'}</td>
+                    <td style="font-size:0.78rem;">${t.employee_name || '—'}</td>
+                    <td style="font-size:0.72rem; color:var(--text-secondary);">${formatDate(t.datetime)}</td>
+                </tr>`).join('')}</tbody>
+            </table></div>`;
         }
 
-        // Low stock
-        const lowList = document.getElementById('lowStockList');
-        if (!d.low_stock || d.low_stock.length === 0) {
-            lowList.innerHTML = '<div class="empty-state"><span class="icon">✅</span><p>สินค้าทุกรายการอยู่ในเกณฑ์ปกติ</p></div>';
-        } else {
-            lowList.innerHTML = `<div class="table-container"><table>
-                <thead><tr><th>SKU</th><th>สินค้า</th><th>คงเหลือ</th><th>จุดสั่งซื้อ</th></tr></thead>
-                <tbody>${d.low_stock.map(p => `
-                    <tr>
-                        <td class="fw-mono">${p.sku}</td>
-                        <td>${p.name}</td>
-                        <td class="text-danger fw-bold">${p.current_stock ?? 0}</td>
-                        <td class="text-muted">${p.reorder_point}</td>
-                    </tr>`).join('')}
-                </tbody></table></div>`;
-        }
-
-        // Charts
-        drawTxChart(d.tx_trend);
-        drawStatusChart(d.tags);
+        drawStatusChart(d);
     }
 
-    function drawTxChart(trend) {
-        const ctx = document.getElementById('txChart').getContext('2d');
-        if (txChart) txChart.destroy();
-        const dates = [...new Set(trend.map(t => t.date))].sort();
-        const inData = dates.map(d => { const f = trend.find(t => t.date === d && t.type === 'IN'); return f ? f.count : 0; });
-        const outData = dates.map(d => { const f = trend.find(t => t.date === d && t.type === 'OUT'); return f ? f.count : 0; });
-
-        txChart = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: dates.map(d => new Date(d).toLocaleDateString('th-TH', { day: '2-digit', month: '2-digit' })),
-                datasets: [
-                    { label: 'รับเข้า', data: inData, backgroundColor: 'rgba(16, 185, 129, 0.7)', borderRadius: 6 },
-                    { label: 'เบิกออก', data: outData, backgroundColor: 'rgba(239, 68, 68, 0.7)', borderRadius: 6 }
-                ]
-            },
-            options: {
-                responsive: true, maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: '#8fa3c8', font: { size: 11 } } } },
-                scales: {
-                    x: { ticks: { color: '#8fa3c8' }, grid: { color: 'rgba(255,255,255,0.05)' } },
-                    y: { ticks: { color: '#8fa3c8' }, grid: { color: 'rgba(255,255,255,0.05)' } }
-                }
-            }
-        });
-    }
-
-    function drawStatusChart(tags) {
+    function drawStatusChart(d) {
         const ctx = document.getElementById('statusChart').getContext('2d');
         if (statusChart) statusChart.destroy();
         statusChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['In-Stock', 'Moving', 'Shipped', 'Unknown'],
+                labels: ['In-Stock', 'Shipped', 'Moving', 'Unknown'],
                 datasets: [{
-                    data: [tags.in_stock || 0, tags.moving || 0, tags.shipped || 0, tags.unknown_tags || 0],
-                    backgroundColor: ['rgba(16,185,129,0.8)', 'rgba(245,158,11,0.8)', 'rgba(139,92,246,0.8)', 'rgba(75,85,99,0.6)'],
+                    data: [d.in_stock || 0, d.shipped || 0, 0, (d.total_tags - d.in_stock - d.shipped) || 0],
+                    backgroundColor: ['rgba(16,185,129,0.8)', 'rgba(139,92,246,0.8)', 'rgba(245,158,11,0.8)', 'rgba(75,85,99,0.6)'],
                     borderWidth: 2, borderColor: '#161d2f'
                 }]
             },
             options: {
                 responsive: true, maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'right', labels: { color: '#8fa3c8', font: { size: 11 }, padding: 12 } }
-                },
+                plugins: { legend: { position: 'right', labels: { color: '#8fa3c8', font: { size: 11 }, padding: 12 } } },
                 cutout: '65%'
             }
         });
     }
 
+    function getTxTypeBadge(type) {
+        return type === 'IN'
+            ? '<span class="badge badge-in-stock">⬇️ IN</span>'
+            : '<span class="badge badge-shipped">⬆️ OUT</span>';
+    }
+
     loadDashboard();
-    setInterval(loadDashboard, 15000); // Auto-refresh every 15s
+    setInterval(loadDashboard, 15000);
 </script>
 </body>
 </html>
