@@ -17,6 +17,11 @@ rfid test/
 │       ├── locations.js   # CRUD โซน/ชั้นวาง
 │       ├── rfid.js        # RFID scan endpoint (Raspberry Pi)
 │       ├── transactions.js # รับ-เบิก สินค้า
+│       ├── employees.js   # CRUD พนักงาน
+│       ├── suppliers.js   # CRUD ซัพพลายเออร์
+│       ├── customers.js   # CRUD ลูกค้า
+│       ├── purchase_orders.js # ใบสั่งซื้อ
+│       ├── shipments.js   # ใบส่งสินค้า
 │       └── dashboard.js   # Dashboard stats
 ├── frontend/              # HTML + CSS + Vanilla JS
 │   ├── index.html         # Login
@@ -25,6 +30,8 @@ rfid test/
 │   ├── rfid-monitor.html  # RFID Live Monitor
 │   ├── transactions.html  # รายการรับ-เบิก
 │   ├── locations.html     # โซนและชั้นวาง
+│   ├── suppliers.html     # ซัพพลายเออร์
+│   ├── customers.html     # ลูกค้า
 │   ├── css/style.css      # Design system
 │   └── js/api.js          # API utilities
 └── database/schema.sql    # MySQL schema + seed data
@@ -46,7 +53,7 @@ mysql -u root -p < database/schema.sql
 # backend/.env
 DB_HOST=localhost
 DB_USER=root
-DB_PASSWORD=YourMySQLPassword   ← แก้ตรงนี้
+DB_PASSWORD=password  ← แก้ตรงนี้
 DB_NAME=warehouse_rfid
 JWT_SECRET=warehouse_rfid_super_secret_key_2026
 RFID_API_KEY=rpi_warehouse_rfid_key_2026
@@ -57,7 +64,7 @@ PORT=3000
 
 ```bash
 cd backend
-brew services start mysql      
+brew services start mysql
 node server.js
 ```
 
@@ -76,6 +83,30 @@ http://localhost:3000
 |------------|----------|-------|
 | `admin` | `password` | Administrator |
 | `operator1` | `password` | Operator |
+
+> รหัสผ่านทุก account ถูกเข้ารหัสด้วย bcrypt เก็บใน `employees.password_hash`
+
+---
+
+## 🗄️ โครงสร้างฐานข้อมูล
+
+| ตาราง | ข้อมูล |
+|-------|--------|
+| `employees` | พนักงาน + ข้อมูล Login (username, password_hash, role) |
+| `products` | SKU, ชื่อสินค้า, Reorder Point, ราคา |
+| `locations` | รหัสโซน, Shelf ID |
+| `rfid_tags` | Tag Code, product, location, สถานะ |
+| `purchase_orders` | ใบสั่งซื้อ, ซัพพลายเออร์, วันที่ |
+| `shipments` | ใบส่งสินค้า, ลูกค้า, วันที่ |
+| `transactions` | รายการ IN/OUT, พนักงาน, RFID tag |
+| `suppliers` | บริษัทผู้จัดหาสินค้า |
+| `customers` | ลูกค้า |
+
+### View
+
+| View | ข้อมูล |
+|------|--------|
+| `vw_product_inventory` | สินค้าคงเหลือ (คำนวณจาก transactions IN - OUT) |
 
 ---
 
@@ -135,28 +166,15 @@ def send_rfid_scan(tag_code, status, reader_id="RPI-1"):
 
 # Test
 send_rfid_scan("RFID-A01-001", "In-Stock", "READER-A")
-send_rfid_scan("RFID-B01-003", "Moving", "READER-GATE")
-send_rfid_scan("RFID-OUT-001", "Shipped", "READER-EXIT")
+send_rfid_scan("RFID-B01-003", "Moving",   "READER-GATE")
+send_rfid_scan("RFID-OUT-001", "Shipped",  "READER-EXIT")
 ```
-
----
-
-## 🗄️ โครงสร้างฐานข้อมูล
-
-| ตาราง | ข้อมูล |
-|-------|--------|
-| `users` | ผู้ใช้ระบบ, role, password hash |
-| `products` | SKU, ชื่อสินค้า, Reorder Point, ราคา |
-| `locations` | รหัสโซน, Shelf ID, ความจุ |
-| `rfid_tags` | Tag Code, product, location, สถานะ |
-| `transactions` | PO, ประเภท IN/OUT, วันเวลา, พนักงาน |
-| `rfid_scan_logs` | บันทึกการสแกนทั้งหมดพร้อม raw data |
 
 ---
 
 ## 🔄 Auto-Features
 
-- **Status Change → Auto Transaction**: เมื่อ RFID tag เปลี่ยนสถานะ ระบบสร้างรายการ transaction อัตโนมัติ
 - **Dashboard Auto-refresh**: อัพเดทข้อมูลทุก 15 วินาที
 - **RFID Monitor Live**: อัพเดทการสแกนใหม่ทุก 5 วินาที
 - **Low Stock Alert**: แจ้งเตือนสินค้าที่ต่ำกว่า Reorder Point
+- **Auto PO/Shipment**: สร้าง Purchase Order / Shipment อัตโนมัติเมื่อบันทึก transaction
