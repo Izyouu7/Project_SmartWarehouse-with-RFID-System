@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="css/style.css">
     <style>
         body { display: flex; align-items: center; justify-content: center; min-height: 100vh; position: relative; }
-        /* Animated grid background */
         body::before {
             content: '';
             position: fixed; inset: 0;
@@ -94,8 +93,48 @@
             color: var(--text-secondary);
             line-height: 1.8;
         }
-
         .demo-hint strong { color: var(--accent-primary); }
+
+        .toggle-link {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+        }
+        .toggle-link a {
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .toggle-link a:hover { text-decoration: underline; }
+
+        .card-panel.hidden { display: none; }
+
+        .form-select {
+            width: 100%;
+            padding: 10px 14px;
+            background: var(--bg-input, #1e2535);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+            cursor: pointer;
+        }
+        .form-select:focus { border-color: var(--accent-primary); }
+
+        .alert-success-box {
+            display: none;
+            background: rgba(16,185,129,0.1);
+            border: 1px solid rgba(16,185,129,0.3);
+            color: #10b981;
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+        }
     </style>
 </head>
 <body>
@@ -107,41 +146,102 @@
         </div>
 
         <div class="login-card">
-            <h2>เข้าสู่ระบบ</h2>
-            <p class="sub">กรุณาใส่ข้อมูลเพื่อเข้าใช้งานระบบ</p>
 
-            <div id="loginAlert" class="alert alert-danger alert-hidden"></div>
+            <!-- ===== LOGIN PANEL ===== -->
+            <div id="loginPanel" class="card-panel">
+                <h2>เข้าสู่ระบบ</h2>
+                <p class="sub">กรุณาใส่ข้อมูลเพื่อเข้าใช้งานระบบ</p>
 
-            <form id="loginForm">
-                <div class="form-group">
-                    <label class="form-label" for="username">ชื่อผู้ใช้</label>
-                    <div class="input-group">
-                        <span class="input-group-icon">👤</span>
-                        <input type="text" id="username" name="username" class="form-control"
-                            placeholder="username" autocomplete="username" required>
+                <div id="loginAlert" class="alert alert-danger alert-hidden"></div>
+
+                <form id="loginForm">
+                    <div class="form-group">
+                        <label class="form-label" for="username">ชื่อผู้ใช้</label>
+                        <div class="input-group">
+                            <span class="input-group-icon">👤</span>
+                            <input type="text" id="username" name="username" class="form-control"
+                                placeholder="username" autocomplete="username" required>
+                        </div>
                     </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="password">รหัสผ่าน</label>
+                        <div class="input-group">
+                            <span class="input-group-icon">🔒</span>
+                            <input type="password" id="password" name="password" class="form-control"
+                                placeholder="••••••••" autocomplete="current-password" required>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary login-btn" id="loginBtn">
+                        <span id="loginBtnText">เข้าสู่ระบบ</span>
+                        <span id="loginSpinner" class="spinner" style="display:none; width:16px; height:16px; border-width:2px;"></span>
+                    </button>
+                </form>
+
+                <div class="toggle-link">
+                    ยังไม่มีบัญชี? <a onclick="showPanel('register')">ลงทะเบียนพนักงานใหม่</a>
                 </div>
 
-                <div class="form-group">
-                    <label class="form-label" for="password">รหัสผ่าน</label>
-                    <div class="input-group">
-                        <span class="input-group-icon">🔒</span>
-                        <input type="password" id="password" name="password" class="form-control"
-                            placeholder="••••••••" autocomplete="current-password" required>
-                    </div>
+                <div class="demo-hint">
+                    <strong>ข้อมูลทดสอบ:</strong><br>
+                    👑 Admin: <strong>admin</strong> / <strong>password</strong><br>
+                    👷 Operator: <strong>operator1</strong> / <strong>password</strong>
                 </div>
-
-                <button type="submit" class="btn btn-primary login-btn" id="loginBtn">
-                    <span id="loginBtnText">เข้าสู่ระบบ</span>
-                    <span id="loginSpinner" class="spinner" style="display:none; width:16px; height:16px; border-width:2px;"></span>
-                </button>
-            </form>
-
-            <div class="demo-hint">
-                <strong>ข้อมูลทดสอบ:</strong><br>
-                👑 Admin: <strong>admin</strong> / <strong>password</strong><br>
-                👷 Operator: <strong>operator1</strong> / <strong>password</strong>
             </div>
+
+            <!-- ===== REGISTER PANEL ===== -->
+            <div id="registerPanel" class="card-panel hidden">
+                <h2>ลงทะเบียนพนักงานใหม่</h2>
+                <p class="sub">กรอกข้อมูลเพื่อสร้างบัญชีใหม่</p>
+
+                <div id="registerAlert" class="alert alert-danger alert-hidden"></div>
+                <div id="registerSuccess" class="alert-success-box"></div>
+
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label class="form-label" for="regName">ชื่อ-นามสกุล</label>
+                        <div class="input-group">
+                            <span class="input-group-icon">📝</span>
+                            <input type="text" id="regName" class="form-control" placeholder="ชื่อ นามสกุล" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="regUsername">ชื่อผู้ใช้</label>
+                        <div class="input-group">
+                            <span class="input-group-icon">👤</span>
+                            <input type="text" id="regUsername" class="form-control" placeholder="username" autocomplete="off" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="regPassword">รหัสผ่าน</label>
+                        <div class="input-group">
+                            <span class="input-group-icon">🔒</span>
+                            <input type="password" id="regPassword" class="form-control" placeholder="อย่างน้อย 6 ตัวอักษร" required>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label" for="regRole">บทบาท</label>
+                        <select id="regRole" class="form-select" required>
+                            <option value="operator">👷 Operator — พนักงานคลังสินค้า</option>
+                            <option value="admin">👑 Admin — ผู้ดูแลระบบ</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary login-btn" id="registerBtn">
+                        <span id="registerBtnText">ลงทะเบียน</span>
+                        <span id="registerSpinner" class="spinner" style="display:none; width:16px; height:16px; border-width:2px;"></span>
+                    </button>
+                </form>
+
+                <div class="toggle-link">
+                    มีบัญชีแล้ว? <a onclick="showPanel('login')">← กลับเข้าสู่ระบบ</a>
+                </div>
+            </div>
+
         </div>
 
         <div class="login-footer">
@@ -154,31 +254,39 @@
 
     <script src="js/auth.js"></script>
     <script>
-        // If already logged in, redirect to dashboard
         if (localStorage.getItem('token')) {
             window.location.href = 'dashboard.html';
         }
 
+        function showPanel(panel) {
+            document.getElementById('loginPanel').classList.toggle('hidden', panel !== 'login');
+            document.getElementById('registerPanel').classList.toggle('hidden', panel !== 'register');
+            document.getElementById('loginAlert').classList.add('alert-hidden');
+            document.getElementById('registerAlert').classList.add('alert-hidden');
+            document.getElementById('registerSuccess').style.display = 'none';
+        }
+
+        // ===== LOGIN =====
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = document.getElementById('loginBtn');
             const btnText = document.getElementById('loginBtnText');
             const spinner = document.getElementById('loginSpinner');
-            const alert = document.getElementById('loginAlert');
+            const alertEl = document.getElementById('loginAlert');
 
             btn.disabled = true;
             btnText.textContent = 'กำลังเข้าสู่ระบบ...';
             spinner.style.display = 'inline-block';
-            alert.classList.add('alert-hidden');
-
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
+            alertEl.classList.add('alert-hidden');
 
             try {
                 const res = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({
+                        username: document.getElementById('username').value,
+                        password: document.getElementById('password').value
+                    })
                 });
                 const data = await res.json();
 
@@ -187,17 +295,70 @@
                     localStorage.setItem('user', JSON.stringify(data.user));
                     window.location.href = 'dashboard.html';
                 } else {
-                    alert.textContent = '⚠️ ' + data.message;
-                    alert.classList.remove('alert-hidden');
+                    alertEl.textContent = '⚠️ ' + data.message;
+                    alertEl.classList.remove('alert-hidden');
+                }
+            } catch {
+                alertEl.textContent = '❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
+                alertEl.classList.remove('alert-hidden');
+            } finally {
+                if (!localStorage.getItem('token')) {
                     btn.disabled = false;
                     btnText.textContent = 'เข้าสู่ระบบ';
                     spinner.style.display = 'none';
                 }
+            }
+        });
+
+        // ===== REGISTER =====
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = document.getElementById('registerBtn');
+            const btnText = document.getElementById('registerBtnText');
+            const spinner = document.getElementById('registerSpinner');
+            const alertEl = document.getElementById('registerAlert');
+            const successEl = document.getElementById('registerSuccess');
+
+            const name = document.getElementById('regName').value.trim();
+            const username = document.getElementById('regUsername').value.trim();
+            const password = document.getElementById('regPassword').value;
+            const role = document.getElementById('regRole').value;
+
+            if (password.length < 6) {
+                alertEl.textContent = '⚠️ รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
+                alertEl.classList.remove('alert-hidden');
+                return;
+            }
+
+            btn.disabled = true;
+            btnText.textContent = 'กำลังลงทะเบียน...';
+            spinner.style.display = 'inline-block';
+            alertEl.classList.add('alert-hidden');
+            successEl.style.display = 'none';
+
+            try {
+                const res = await fetch('/api/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, username, password, role })
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    successEl.textContent = '✅ ' + data.message + ' (รหัสพนักงาน: ' + data.employee_id + ')';
+                    successEl.style.display = 'block';
+                    document.getElementById('registerForm').reset();
+                    setTimeout(() => showPanel('login'), 2500);
+                } else {
+                    alertEl.textContent = '⚠️ ' + data.message;
+                    alertEl.classList.remove('alert-hidden');
+                }
             } catch {
-                alert.textContent = '❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
-                alert.classList.remove('alert-hidden');
+                alertEl.textContent = '❌ ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
+                alertEl.classList.remove('alert-hidden');
+            } finally {
                 btn.disabled = false;
-                btnText.textContent = 'เข้าสู่ระบบ';
+                btnText.textContent = 'ลงทะเบียน';
                 spinner.style.display = 'none';
             }
         });

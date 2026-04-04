@@ -53,6 +53,49 @@ router.post('/login', async (req, res) => {
     }
 });
 
+// POST /api/auth/register
+router.post('/register', async (req, res) => {
+    const { name, username, password, role } = req.body;
+
+    if (!name || !username || !password || !role) {
+        return res.status(400).json({ success: false, message: 'กรุณากรอกข้อมูลให้ครบทุกช่อง' });
+    }
+
+    if (!['admin', 'operator'].includes(role)) {
+        return res.status(400).json({ success: false, message: 'Role ไม่ถูกต้อง' });
+    }
+
+    try {
+        // ตรวจสอบ username ซ้ำ
+        const [existing] = await db.query('SELECT employee_id FROM employees WHERE username = ?', [username]);
+        if (existing.length > 0) {
+            return res.status(409).json({ success: false, message: 'ชื่อผู้ใช้นี้ถูกใช้แล้ว' });
+        }
+
+        // Auto generate employee_id (E0001, E0002, ...)
+        const [lastRow] = await db.query('SELECT employee_id FROM employees ORDER BY employee_id DESC LIMIT 1');
+        let nextId = 'E0001';
+        if (lastRow.length > 0) {
+            const lastNum = parseInt(lastRow[0].employee_id.replace('E', ''), 10);
+            nextId = 'E' + String(lastNum + 1).padStart(4, '0');
+        }
+
+        // Hash password
+        const password_hash = await bcrypt.hash(password, 10);
+
+        await db.query(
+            'INSERT INTO employees (employee_id, name, username, password_hash, role) VALUES (?, ?, ?, ?, ?)',
+            [nextId, name, username, password_hash, role]
+        );
+
+        res.status(201).json({ success: true, message: 'ลงทะเบียนสำเร็จ กรุณาเข้าสู่ระบบ', employee_id: nextId });
+    } catch (err) {
+        console.error('Register error:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+
 // GET /api/auth/me - Verify token and get current user info
 router.get('/me', async (req, res) => {
     const authHeader = req.headers['authorization'];
