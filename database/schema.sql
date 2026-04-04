@@ -135,7 +135,7 @@ ON DUPLICATE KEY UPDATE name = name;
 -- =====================================================
 INSERT INTO employees (employee_id, name, role, username, password_hash) VALUES
 ('E0000', 'System Administrator', 'admin',    'admin',     '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'),
-('E0001', 'สมชาย ใจดี',          'operator', 'operator1', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'),
+('E0001', 'สมชาย ใจดี',          'operator', 'operator1', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')
 ON DUPLICATE KEY UPDATE name = name;
 
 -- =====================================================
@@ -193,7 +193,7 @@ ON DUPLICATE KEY UPDATE shipment_id = shipment_id;
 INSERT INTO transactions (transaction_type, quantity, employee_id, tag_id, po_id, shipment_id) VALUES
 ('IN',  10, 'E0001', 'TAG00001', 'PO2026001', NULL),
 ('IN',   5, 'E0001', 'TAG00003', 'PO2026002', NULL),
-('OUT',  3, 'E0002', 'TAG00005', NULL, 'SH000001')
+('OUT',  3, 'E0001', 'TAG00005', NULL, 'SH000001')
 ON DUPLICATE KEY UPDATE transaction_id = transaction_id;
 
 -- =====================================================

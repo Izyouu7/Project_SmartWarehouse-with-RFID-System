@@ -1,1 +1,12 @@
+# Environment variables (ห้ามขึ้น GitHub เด็ดขาด)
 .env
+.env.*
+
+# Node.js dependencies (ติดตั้งใหม่ด้วย npm install)
+node_modules/
+
+# macOS
+.DS_Store
+
+# Editor
+.vscode/
