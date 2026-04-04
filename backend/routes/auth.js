@@ -15,7 +15,7 @@ router.post('/login', async (req, res) => {
 
     try {
         const [rows] = await db.query(
-            'SELECT * FROM users WHERE username = ? AND is_active = 1',
+            'SELECT * FROM employees WHERE username = ?',
             [username]
         );
 
@@ -31,7 +31,7 @@ router.post('/login', async (req, res) => {
         }
 
         const token = jwt.sign(
-            { id: user.id, username: user.username, role: user.role, full_name: user.full_name },
+            { id: user.employee_id, username: user.username, role: user.role, full_name: user.name },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
         );
@@ -41,9 +41,9 @@ router.post('/login', async (req, res) => {
             message: 'เข้าสู่ระบบสำเร็จ',
             token,
             user: {
-                id: user.id,
+                id: user.employee_id,
                 username: user.username,
-                full_name: user.full_name,
+                full_name: user.name,
                 role: user.role
             }
         });

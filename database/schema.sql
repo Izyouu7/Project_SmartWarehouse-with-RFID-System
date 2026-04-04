@@ -4,19 +4,7 @@
 CREATE DATABASE IF NOT EXISTS warehouse_rfid CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE warehouse_rfid;
 
--- =====================================================
--- Table: users (สำหรับ Login ระบบ)
--- =====================================================
-CREATE TABLE IF NOT EXISTS users (
-    id            INT AUTO_INCREMENT PRIMARY KEY,
-    username      VARCHAR(50) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    full_name     VARCHAR(100),
-    role          ENUM('admin', 'operator', 'viewer') DEFAULT 'operator',
-    is_active     BOOLEAN DEFAULT TRUE,
-    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+
 
 -- =====================================================
 -- Table: suppliers (บริษัทผู้จัดหาสินค้า — นำสินค้าเข้า)
@@ -37,12 +25,14 @@ CREATE TABLE IF NOT EXISTS customers (
 );
 
 -- =====================================================
--- Table: employees (พนักงานคลังสินค้า)
+-- Table: employees (พนักงานคลังสินค้า + ข้อมูล Login)
 -- =====================================================
 CREATE TABLE IF NOT EXISTS employees (
-    employee_id CHAR(5) PRIMARY KEY,
-    name        VARCHAR(50) NOT NULL,
-    role        VARCHAR(20)
+    employee_id   CHAR(5)      PRIMARY KEY,
+    name          VARCHAR(100) NOT NULL,
+    role          ENUM('admin', 'operator') DEFAULT 'operator',
+    username      VARCHAR(50)  UNIQUE,
+    password_hash VARCHAR(255)
 );
 
 -- =====================================================
@@ -116,24 +106,12 @@ CREATE TABLE IF NOT EXISTS transactions (
     FOREIGN KEY (employee_id)  REFERENCES employees(employee_id)       ON DELETE SET NULL,
     FOREIGN KEY (tag_id)       REFERENCES rfid_tags(tag_id)            ON DELETE SET NULL,
     FOREIGN KEY (po_id)        REFERENCES purchase_orders(po_id)       ON DELETE SET NULL,
-    FOREIGN KEY (shipment_id)  REFERENCES shipments(shipment_id)       ON DELETE SET NULL,
-
-    -- IN ต้องมี po_id / OUT ต้องมี shipment_id / ไม่มีทั้งคู่ก็ได้ (RFID auto)
-    CONSTRAINT chk_transaction_logic CHECK (
-        (po_id IS NOT NULL AND shipment_id IS NULL)
-        OR (po_id IS NULL AND shipment_id IS NOT NULL)
-        OR (po_id IS NULL AND shipment_id IS NULL)
-    )
+    FOREIGN KEY (shipment_id)  REFERENCES shipments(shipment_id)       ON DELETE SET NULL
+    -- หมายเหตุ: logic ตรวจสอบ IN/OUT ถูก validate ที่ backend (transactions.js) แทน
+    -- เนื่องจาก MySQL 8.0 ไม่อนุญาตให้ใช้ FK column ใน CHECK constraint
 );
 
--- =====================================================
--- Seed Data: Default admin user
--- Password: admin123 (bcrypt hashed)
--- =====================================================
-INSERT INTO users (username, password_hash, full_name, role) VALUES
-('admin',     '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'System Administrator', 'admin'),
-('operator1', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'พนักงาน คลังสินค้า',    'operator')
-ON DUPLICATE KEY UPDATE id = id;
+
 
 -- =====================================================
 -- Seed Data: Suppliers
@@ -152,11 +130,12 @@ INSERT INTO customers (customer_id, name, phone) VALUES
 ON DUPLICATE KEY UPDATE name = name;
 
 -- =====================================================
--- Seed Data: Employees
+-- Seed Data: Employees (รวม Login accounts)
+-- Password สำหรับทุก account: password (bcrypt)
 -- =====================================================
-INSERT INTO employees (employee_id, name, role) VALUES
-('E0001', 'สมชาย ใจดี',   'operator'),
-('E0002', 'สมหญิง รักงาน', 'operator')
+INSERT INTO employees (employee_id, name, role, username, password_hash) VALUES
+('E0000', 'System Administrator', 'admin',    'admin',     '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'),
+('E0001', 'สมชาย ใจดี',          'operator', 'operator1', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'),
 ON DUPLICATE KEY UPDATE name = name;
 
 -- =====================================================
@@ -216,3 +195,26 @@ INSERT INTO transactions (transaction_type, quantity, employee_id, tag_id, po_id
 ('IN',   5, 'E0001', 'TAG00003', 'PO2026002', NULL),
 ('OUT',  3, 'E0002', 'TAG00005', NULL, 'SH000001')
 ON DUPLICATE KEY UPDATE transaction_id = transaction_id;
+
+-- =====================================================
+-- View: vw_product_inventory
+-- แสดงสินค้าคงเหลือ (ใช้ logic เดียวกับ frontend: SUM IN - SUM OUT)
+-- Columns: รหัสสินค้า, ชื่อสินค้า, จำนวนคงเหลือ, จุดสั่งซื้อ, ราคา
+-- =====================================================
+CREATE OR REPLACE VIEW vw_product_inventory AS
+SELECT
+    p.product_id                                                                          AS รหัสสินค้า,
+    p.name                                                                                AS ชื่อสินค้า,
+    COALESCE(SUM(CASE WHEN t.transaction_type = 'IN'  THEN t.quantity ELSE 0 END), 0)
+  - COALESCE(SUM(CASE WHEN t.transaction_type = 'OUT' THEN t.quantity ELSE 0 END), 0)    AS จำนวนคงเหลือ,
+    p.reorder_point                                                                       AS จุดสั่งซื้อ,
+    p.price                                                                               AS ราคา
+FROM products p
+LEFT JOIN rfid_tags rt   ON rt.product_id = p.product_id
+LEFT JOIN transactions t ON t.tag_id      = rt.tag_id
+GROUP BY
+    p.product_id,
+    p.name,
+    p.reorder_point,
+    p.price
+ORDER BY p.product_id;
