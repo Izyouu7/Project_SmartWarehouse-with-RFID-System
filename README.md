@@ -64,7 +64,6 @@ PORT=3000
 
 ```bash
 cd backend
-brew services start mysql
 node server.js
 ```
 

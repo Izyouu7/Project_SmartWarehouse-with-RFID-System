@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # 1. ฐานข้อมูล MariaDB (ใช้แทน MySQL สำหรับ Raspberry Pi ทำงานได้เสถียรกว่า)
+  db:
+    image: mariadb:10.6
+    container_name: rfid_database
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: 12345678
+      MYSQL_DATABASE: warehouse_rfid
+    ports:
+      - "3306:3306"
+    volumes:
+      # คำสั่งนี้จะลากไฟล์ schema.sql ไปสร้าง Table ให้อัตโนมัติในฐานข้อมูลตอนรันครั้งแรก
+      - ./database/schema.sql:/docker-entrypoint-initdb.d/init.sql
+      # จัดเก็บข้อมูลจริงไว้ในโปรเจกต์ เวลาปิดเครื่องข้อมูลจะได้ไม่หาย
+      - db_data:/var/lib/mysql
+
+  # 2. Web Server (ระบบ Backend และ Frontend ของเรา)
+  web:
+    build: 
+      context: ./backend
+    container_name: rfid_web_server
+    restart: always
+    ports:
+      - "3000:3000"
+      - "5500:5500" # เผื่อช่องทางสำหรับ port อื่นๆ
+    environment:
+      # ตั้งค่าให้ Node.js เชื่อมต่อเข้ากับ Container ของ Database ชื่อ "db" (ไม่ใช่ localhost แบบในคอม)
+      DB_HOST: db
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: 12345678
+      DB_NAME: warehouse_rfid
+      JWT_SECRET: warehouse_rfid_super_secret_key_2026
+      JWT_EXPIRES_IN: 8h
+      RFID_API_KEY: rpi_warehouse_rfid_key_2026
+      TZ: Asia/Bangkok
+    volumes:
+      # โยงโฟลเดอร์หน้าตาเว็บ (UI) ให้ตัวเซิร์ฟเวอร์ Express เปิดเจอ
+      - ./frontend:/app/frontend
+      # สำรองใช้งานไฟล์ .env เดิม
+      - ./backend/.env:/app/backend/.env
+    depends_on:
+      - db
+
+# สร้างพื้นที่จำลองเพื่อเก็บข้อมูล Database
+volumes:
+  db_data:

@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS employees (
     name          VARCHAR(100) NOT NULL,
     role          ENUM('admin', 'operator') DEFAULT 'operator',
     username      VARCHAR(50)  UNIQUE,
-    password_hash VARCHAR(255)
+    password      VARCHAR(255)
 );
 
 -- =====================================================
@@ -130,12 +130,11 @@ INSERT INTO customers (customer_id, name, phone) VALUES
 ON DUPLICATE KEY UPDATE name = name;
 
 -- =====================================================
--- Seed Data: Employees (รวม Login accounts)
--- Password สำหรับทุก account: password (bcrypt)
+-- Password สำหรับทุก account: password
 -- =====================================================
-INSERT INTO employees (employee_id, name, role, username, password_hash) VALUES
-('E0000', 'System Administrator', 'admin',    'admin',     '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi'),
-('E0001', 'สมชาย ใจดี',          'operator', 'operator1', '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')
+INSERT INTO employees (employee_id, name, role, username, password) VALUES
+('E0000', 'System Administrator', 'admin',    'admin',     'password'),
+('E0001', 'สมชาย ใจดี',          'operator', 'operator1', 'password')
 ON DUPLICATE KEY UPDATE name = name;
 
 -- =====================================================

@@ -72,14 +72,7 @@
                     <div class="stat-icon yellow">📋</div>
                     <div><div class="stat-value" id="statTxToday">—</div><div class="stat-label">รายการวันนี้</div></div>
                 </div>
-                <div class="stat-card blue">
-                    <div class="stat-icon blue">🏭</div>
-                    <div><div class="stat-value" id="statSuppliers">—</div><div class="stat-label">Suppliers</div></div>
-                </div>
-                <div class="stat-card green">
-                    <div class="stat-icon green">🏢</div>
-                    <div><div class="stat-value" id="statCustomers">—</div><div class="stat-label">Customers</div></div>
-                </div>
+
             </div>
 
             <!-- Charts -->
@@ -125,8 +118,7 @@
         document.getElementById('statInStock').textContent    = formatNumber(d.in_stock);
         document.getElementById('statShipped').textContent    = formatNumber(d.shipped);
         document.getElementById('statTxToday').textContent    = formatNumber(d.tx_today);
-        document.getElementById('statSuppliers').textContent  = formatNumber(d.total_suppliers);
-        document.getElementById('statCustomers').textContent  = formatNumber(d.total_customers);
+
         document.getElementById('totalTags').textContent      = `${formatNumber(d.total_tags)} tags`;
         document.getElementById('lastUpdate').textContent     = 'อัพเดทล่าสุด: ' + formatDate(new Date().toISOString());
 

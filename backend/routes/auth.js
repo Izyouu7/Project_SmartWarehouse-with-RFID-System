@@ -24,7 +24,7 @@ router.post('/login', async (req, res) => {
         }
 
         const user = rows[0];
-        const isValid = await bcrypt.compare(password, user.password_hash);
+        const isValid = (password === user.password);
 
         if (!isValid) {
             return res.status(401).json({ success: false, message: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
@@ -80,12 +80,12 @@ router.post('/register', async (req, res) => {
             nextId = 'E' + String(lastNum + 1).padStart(4, '0');
         }
 
-        // Hash password
-        const password_hash = await bcrypt.hash(password, 10);
+        // เก็บ password แทน password_hash
+        const user_password = password;
 
         await db.query(
-            'INSERT INTO employees (employee_id, name, username, password_hash, role) VALUES (?, ?, ?, ?, ?)',
-            [nextId, name, username, password_hash, role]
+            'INSERT INTO employees (employee_id, name, username, password, role) VALUES (?, ?, ?, ?, ?)',
+            [nextId, name, username, user_password, role]
         );
 
         res.status(201).json({ success: true, message: 'ลงทะเบียนสำเร็จ กรุณาเข้าสู่ระบบ', employee_id: nextId });
