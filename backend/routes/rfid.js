@@ -54,7 +54,7 @@ router.post('/tags', verifyToken, async (req, res) => {
 // POST /api/rfid/scan — รับข้อมูลจาก Raspberry Pi
 // ใช้ API Key แทน JWT
 router.post('/scan', verifyApiKey, async (req, res) => {
-    const { tag_id, shelf_id } = req.body;
+    const { tag_id, shelf_id, action } = req.body;
     if (!tag_id) return res.status(400).json({ success: false, message: 'tag_id required' });
     try {
         const [existing] = await db.query('SELECT * FROM rfid_tags WHERE tag_id = ?', [tag_id]);
@@ -70,18 +70,25 @@ router.post('/scan', verifyApiKey, async (req, res) => {
         // Tag มีอยู่แล้ว — คำนวณ status ใหม่
         const currentStatus = existing[0].status;
         let newStatus = currentStatus;
+        let finalShelfId = existing[0].shelf_id;
 
-        if (shelf_id) {
+        if (action === 'OUT') {
+            newStatus = 'Shipped';
+            finalShelfId = null; // นำของออกจากชั้น
+        } else if (action === 'IN') {
+            newStatus = 'In-Stock';
+            if (shelf_id) finalShelfId = shelf_id;
+        } else if (shelf_id) {
             // มี shelf_id → ยืนยันตำแหน่งแล้ว
-            // Pending → In-Stock, Unknown → In-Stock, อื่นๆ คงเดิม
             if (currentStatus === 'Pending' || currentStatus === 'Unknown') {
                 newStatus = 'In-Stock';
             }
+            finalShelfId = shelf_id;
         }
 
         await db.query(
             'UPDATE rfid_tags SET status = ?, shelf_id = ?, last_update = NOW() WHERE tag_id = ?',
-            [newStatus, shelf_id || existing[0].shelf_id, tag_id]
+            [newStatus, finalShelfId, tag_id]
         );
 
         const msg = shelf_id && currentStatus === 'Pending'
