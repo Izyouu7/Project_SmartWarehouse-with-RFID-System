@@ -57,7 +57,7 @@ function formatCurrency(n) { return `฿${(n || 0).toLocaleString('th-TH', { min
 function getStatusBadge(status) {
     const map = {
         'In-Stock': '<span class="badge badge-in-stock">📦 In-Stock</span>',
-        'Moving': '<span class="badge badge-moving">🚚 Moving</span>',
+        'Wait-Scan': '<span class="badge badge-moving">🚚 Wait-Scan</span>',
         'Shipped': '<span class="badge badge-shipped">✈️ Shipped</span>',
         'Unknown': '<span class="badge badge-unknown">❓ Unknown</span>',
     };

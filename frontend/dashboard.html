@@ -220,10 +220,20 @@
         statusChart = new Chart(ctx, {
             type: 'doughnut',
             data: {
-                labels: ['In-Stock', 'Shipped', 'Moving', 'Unknown'],
+                labels: ['In-Stock', 'Shipped', 'Wait-Scan', 'Unknown'],
                 datasets: [{
-                    data: [d.in_stock || 0, d.shipped || 0, 0, (d.total_tags - d.in_stock - d.shipped) || 0],
-                    backgroundColor: ['rgba(16,185,129,0.8)', 'rgba(139,92,246,0.8)', 'rgba(245,158,11,0.8)', 'rgba(75,85,99,0.6)'],
+                    data: [
+                        d.in_stock || 0,
+                        d.shipped || 0,
+                        d.wait_scan || 0,
+                        Math.max(0, (d.total_tags || 0) - (d.in_stock || 0) - (d.shipped || 0) - (d.wait_scan || 0))
+                    ],
+                    backgroundColor: [
+                        'rgba(16,185,129,0.8)', // In-Stock
+                        'rgba(139,92,246,0.8)', // Shipped
+                        'rgba(245,158,11,0.8)', // Wait-Scan
+                        'rgba(75,85,99,0.6)'    // Unknown
+                    ],
                     borderWidth: 2, borderColor: '#161d2f'
                 }]
             },

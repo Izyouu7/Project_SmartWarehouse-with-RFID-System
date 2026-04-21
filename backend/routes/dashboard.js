@@ -9,6 +9,7 @@ router.get('/stats', verifyToken, async (req, res) => {
         const [[{ total_products }]]   = await db.query('SELECT COUNT(*) AS total_products FROM products');
         const [[{ total_tags }]]       = await db.query('SELECT COUNT(*) AS total_tags FROM rfid_tags');
         const [[{ in_stock }]]         = await db.query("SELECT COUNT(*) AS in_stock FROM rfid_tags WHERE status = 'In-Stock'");
+        const [[{ wait_scan }]]        = await db.query("SELECT COUNT(*) AS wait_scan FROM rfid_tags WHERE status = 'Wait-Scan'");
         const [[{ shipped }]]          = await db.query("SELECT COUNT(*) AS shipped FROM rfid_tags WHERE status = 'Shipped'");
         const [[{ total_suppliers }]]  = await db.query('SELECT COUNT(*) AS total_suppliers FROM suppliers');
         const [[{ total_customers }]]  = await db.query('SELECT COUNT(*) AS total_customers FROM customers');
@@ -38,6 +39,7 @@ router.get('/stats', verifyToken, async (req, res) => {
                 total_products,
                 total_tags,
                 in_stock,
+                wait_scan,
                 shipped,
                 total_suppliers,
                 total_customers,

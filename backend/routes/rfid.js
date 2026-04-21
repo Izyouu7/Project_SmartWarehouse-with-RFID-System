@@ -7,14 +7,15 @@ const { verifyToken, verifyApiKey } = require('../middleware/auth');
 router.get('/tags', verifyToken, async (req, res) => {
     try {
         const [rows] = await db.query(`
-            SELECT rt.*, p.name AS product_name, l.zone_id,
+            SELECT rt.*, p.name AS product_name, l.zone_id, e.name AS scanned_by_name,
                    COALESCE(SUM(CASE WHEN t.transaction_type = 'IN'  THEN t.quantity ELSE 0 END), 0)
                  - COALESCE(SUM(CASE WHEN t.transaction_type = 'OUT' THEN t.quantity ELSE 0 END), 0) AS current_qty
             FROM rfid_tags rt
             LEFT JOIN products  p ON rt.product_id = p.product_id
             LEFT JOIN locations l ON rt.shelf_id   = l.shelf_id
+            LEFT JOIN employees e ON rt.last_scanned_by = e.employee_id
             LEFT JOIN transactions t ON rt.tag_id = t.tag_id
-            GROUP BY rt.tag_id, p.product_id, p.name, l.shelf_id, l.zone_id
+            GROUP BY rt.tag_id, p.product_id, p.name, l.shelf_id, l.zone_id, e.name
             ORDER BY rt.last_update DESC
         `);
         res.json({ success: true, data: rows });
@@ -58,15 +59,15 @@ router.post('/tags', verifyToken, async (req, res) => {
 // POST /api/rfid/scan — รับข้อมูลจาก Raspberry Pi
 // ใช้ API Key แทน JWT
 router.post('/scan', verifyApiKey, async (req, res) => {
-    const { tag_id, shelf_id, action } = req.body;
+    const { tag_id, shelf_id, action, employee_id } = req.body;
     if (!tag_id) return res.status(400).json({ success: false, message: 'tag_id required' });
     try {
         const [existing] = await db.query('SELECT * FROM rfid_tags WHERE tag_id = ?', [tag_id]);
         if (!existing.length) {
             // Tag ใหม่ที่ยังไม่อยู่ในระบบ → สร้างเป็น Unknown
             await db.query(
-                'INSERT INTO rfid_tags (tag_id, shelf_id, status, last_update) VALUES (?, ?, ?, NOW())',
-                [tag_id, shelf_id || null, 'Unknown']
+                'INSERT INTO rfid_tags (tag_id, shelf_id, status, last_update, last_scanned_by) VALUES (?, ?, ?, NOW(), ?)',
+                [tag_id, shelf_id || null, 'Unknown', employee_id || null]
             );
             return res.json({ success: true, message: 'พบ Tag ใหม่ บันทึกเป็น Unknown', tag_id });
         }
@@ -77,8 +78,11 @@ router.post('/scan', verifyApiKey, async (req, res) => {
         let finalShelfId = existing[0].shelf_id;
 
         if (action === 'OUT') {
+            if (currentStatus !== 'Wait-Scan') {
+                return res.status(400).json({ success: false, message: `❌ ย้ายไม่ได้: Tag ถูดกำหนดสถานะเป็น ${currentStatus} (ต้องเป็น Wait-Scan รอเบิกออกเท่านั้น)` });
+            }
             newStatus = 'Shipped';
-            finalShelfId = null; // นำของออกจากชั้น
+            // เก็บ shelf_id ไว้ดูประวัติตำแหน่งล่าสุด (ไม่ต้อง set เป็น null)
         } else if (action === 'IN') {
             newStatus = 'In-Stock';
             if (shelf_id) finalShelfId = shelf_id;
@@ -91,7 +95,7 @@ router.post('/scan', verifyApiKey, async (req, res) => {
         }
 
         // Check Capacity before placing on shelf
-        if (finalShelfId && (newStatus === 'In-Stock' || newStatus === 'Moving')) {
+        if (finalShelfId && (newStatus === 'In-Stock' || newStatus === 'Wait-Scan')) {
             const [locRows] = await db.query(`
                 SELECT capacity FROM locations WHERE shelf_id = ?
             `, [finalShelfId]);
@@ -135,8 +139,8 @@ router.post('/scan', verifyApiKey, async (req, res) => {
         }
 
         await db.query(
-            'UPDATE rfid_tags SET status = ?, shelf_id = ?, last_update = NOW() WHERE tag_id = ?',
-            [newStatus, finalShelfId, tag_id]
+            'UPDATE rfid_tags SET status = ?, shelf_id = ?, last_update = NOW(), last_scanned_by = COALESCE(?, last_scanned_by) WHERE tag_id = ?',
+            [newStatus, finalShelfId, employee_id || null, tag_id]
         );
 
         const msg = shelf_id && currentStatus === 'Pending'

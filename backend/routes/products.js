@@ -9,9 +9,9 @@ router.get('/', verifyToken, async (req, res) => {
         const { search } = req.query;
         let query = `
             SELECT p.*,
-                   COALESCE(SUM(CASE WHEN t.transaction_type = 'IN'  THEN t.quantity ELSE 0 END), 0)
-                 - COALESCE(SUM(CASE WHEN t.transaction_type = 'OUT' THEN t.quantity ELSE 0 END), 0)
-                   AS stock_count
+                    COALESCE(SUM(CASE WHEN t.transaction_type = 'IN' AND (rt.status IS NULL OR rt.status NOT IN ('Pending', 'Unknown')) THEN t.quantity ELSE 0 END), 0)
+                  - COALESCE(SUM(CASE WHEN t.transaction_type = 'OUT' AND (rt.status IS NULL OR rt.status = 'Shipped') THEN t.quantity ELSE 0 END), 0)
+                    AS stock_count
             FROM products p
             LEFT JOIN rfid_tags rt  ON rt.product_id = p.product_id
             LEFT JOIN transactions t ON t.tag_id      = rt.tag_id

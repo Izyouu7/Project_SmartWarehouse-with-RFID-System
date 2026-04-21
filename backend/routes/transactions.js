@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
-const { verifyToken } = require('../middleware/auth');
+const { verifyToken, requireAdmin } = require('../middleware/auth');
 
 // GET /api/transactions
 router.get('/', verifyToken, async (req, res) => {
@@ -42,7 +42,7 @@ router.get('/', verifyToken, async (req, res) => {
 });
 
 // POST /api/transactions
-router.post('/', verifyToken, async (req, res) => {
+router.post('/', verifyToken, requireAdmin, async (req, res) => {
     let { transaction_type, quantity, employee_id, tag_id, po_id, shipment_id,
           supplier_id, customer_id, product_id, product_name, auto_tag } = req.body;
     if (!transaction_type) return res.status(400).json({ success: false, message: 'transaction_type required' });
@@ -88,7 +88,7 @@ router.post('/', verifyToken, async (req, res) => {
 
         // อัปเดตสถานะ RFID tag (กรณี tag มีอยู่แล้ว ไม่ได้ auto-generate)
         if (tag_id && !auto_tag) {
-            const newStatus = transaction_type === 'IN' ? 'In-Stock' : 'Shipped';
+            const newStatus = transaction_type === 'IN' ? 'In-Stock' : 'Wait-Scan';
             await db.query('UPDATE rfid_tags SET status = ?, last_update = NOW() WHERE tag_id = ?', [newStatus, tag_id]);
         }
 

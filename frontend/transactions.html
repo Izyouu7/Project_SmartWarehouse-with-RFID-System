@@ -80,7 +80,7 @@
                     <div class="page-subtitle">บันทึกการนำสินค้าเข้า (IN) และออก (OUT) คลัง</div>
                 </div>
             </div>
-            <div class="header-right">
+            <div class="header-right" id="actionButtons">
                 <button class="btn btn-success" onclick="openModal('IN')">⬇️ รับสินค้า IN</button>
                 <button class="btn btn-danger" onclick="openModal('OUT')">⬆️ เบิกสินค้า OUT</button>
             </div>
@@ -181,6 +181,12 @@
     if (!requireAuth()) {}
     setActiveNav('transactions');
     setupUserInfo();
+
+    // ซ่อนปุ่มถ้าไม่ใช่ Admin
+    if (getUser()?.role !== 'admin') {
+        const btnGroup = document.getElementById('actionButtons');
+        if (btnGroup) btnGroup.style.display = 'none';
+    }
 
     let cachedProducts = [];
     let cachedTags = [];
@@ -338,9 +344,12 @@
         const res = await apiFetch('/employees');
         const sel = document.getElementById('txEmployee');
         sel.innerHTML = '<option value="">-- เลือกพนักงาน --</option>';
-        if (res?.success) res.data.forEach(e => {
-            sel.innerHTML += `<option value="${e.employee_id}">${e.name} (${e.role})</option>`;
-        });
+        if (res?.success) {
+            const admins = res.data.filter(e => e.role === 'admin');
+            admins.forEach(e => {
+                sel.innerHTML += `<option value="${e.employee_id}">${e.name} (${e.role})</option>`;
+            });
+        }
     }
 
     function closeTxModal() { document.getElementById('txModal').classList.remove('show'); }

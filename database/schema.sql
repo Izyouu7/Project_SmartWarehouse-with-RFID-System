@@ -60,11 +60,13 @@ CREATE TABLE IF NOT EXISTS rfid_tags (
     tag_id      CHAR(8) PRIMARY KEY,
     product_id  CHAR(10),
     shelf_id    CHAR(6),
-    status      ENUM('Pending', 'In-Stock', 'Moving', 'Shipped', 'Unknown') DEFAULT 'Unknown',
+    status      ENUM('Pending', 'In-Stock', 'Wait-Scan', 'Shipped', 'Unknown') DEFAULT 'Unknown',
     last_update DATETIME,
+    last_scanned_by CHAR(5),
 
     FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE SET NULL,
-    FOREIGN KEY (shelf_id)   REFERENCES locations(shelf_id)  ON DELETE SET NULL
+    FOREIGN KEY (shelf_id)   REFERENCES locations(shelf_id)  ON DELETE SET NULL,
+    FOREIGN KEY (last_scanned_by) REFERENCES employees(employee_id) ON DELETE SET NULL
 );
 
 -- =====================================================

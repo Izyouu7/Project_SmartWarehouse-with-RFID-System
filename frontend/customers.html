@@ -82,28 +82,19 @@
         <div id="modalAlert" class="alert alert-danger alert-hidden"></div>
         <form id="customerForm">
             <input type="hidden" id="editId">
-            <div class="grid-2">
-                <!-- แสดงตอน Edit: ID แบบ read-only -->
-                <div class="form-group" id="idDisplayGroup" style="display:none">
-                    <label class="form-label">Customer ID</label>
-                    <div id="customerIdDisplay" class="form-control" style="background:var(--bg-secondary);color:var(--text-muted);font-family:monospace;"></div>
-                </div>
-                <!-- แสดงตอน Add: บอกว่า generate อัตโนมัติ -->
-                <div class="form-group" id="idAutoGroup">
-                    <label class="form-label">Customer ID</label>
-                    <div class="form-control" style="background:var(--bg-secondary);color:var(--text-muted);display:flex;align-items:center;gap:8px;">
-                        <span style="font-size:1rem;">⚙️</span>
-                        <span style="font-size:0.82rem;">สร้างอัตโนมัติ (Cxxxxxxx)</span>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label class="form-label">เบอร์โทร</label>
-                    <input type="text" id="phone" class="form-control" placeholder="0812345678" maxlength="10">
-                </div>
-            </div>
             <div class="form-group">
                 <label class="form-label">ชื่อบริษัท *</label>
                 <input type="text" id="name" class="form-control" placeholder="ชื่อบริษัท" required>
+            </div>
+            <div class="form-group">
+                <label class="form-label">เบอร์โทร</label>
+                <input type="text" id="phone" class="form-control" placeholder="0812345678" maxlength="10">
+            </div>
+            <div class="customer-id-group" style="display: none;">
+                <div class="form-group">
+                    <label class="form-label">Customer ID <small class="text-muted">(CHAR 8)</small></label>
+                    <input type="text" id="customerId" class="form-control" placeholder="C0000001" maxlength="8" readonly>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="closeModal()">ยกเลิก</button>
@@ -149,8 +140,7 @@
         document.getElementById('editId').value = '';
         document.getElementById('customerForm').reset();
         document.getElementById('modalTitle').textContent = '➕ เพิ่ม Customer';
-        document.getElementById('idAutoGroup').style.display = '';
-        document.getElementById('idDisplayGroup').style.display = 'none';
+        document.querySelector('.customer-id-group').style.display = 'none';
         document.getElementById('modalAlert').classList.add('alert-hidden');
         document.getElementById('customerModal').classList.add('show');
     }
@@ -159,9 +149,8 @@
         const c = allCustomers.find(x => x.customer_id === id);
         if (!c) return;
         document.getElementById('editId').value = c.customer_id;
-        document.getElementById('customerIdDisplay').textContent = c.customer_id;
-        document.getElementById('idAutoGroup').style.display = 'none';
-        document.getElementById('idDisplayGroup').style.display = '';
+        document.getElementById('customerId').value = c.customer_id;
+        document.querySelector('.customer-id-group').style.display = 'block';
         document.getElementById('name').value = c.name;
         document.getElementById('phone').value = c.phone || '';
         document.getElementById('modalTitle').textContent = '✏️ แก้ไข Customer';
@@ -178,6 +167,9 @@
             name: document.getElementById('name').value,
             phone: document.getElementById('phone').value
         };
+        if (editId) {
+            body.customer_id = document.getElementById('customerId').value;
+        }
         const btn = document.getElementById('saveBtn');
         btn.disabled = true; btn.textContent = 'กำลังบันทึก...';
         const res = editId

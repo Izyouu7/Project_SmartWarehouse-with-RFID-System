@@ -65,7 +65,7 @@
                     <div style="background:var(--bg-secondary); padding:14px; border-radius:var(--radius-sm); font-family:monospace; font-size:0.8rem; color:#a5f3fc; line-height:2;">
                         <strong style="color:#34d399;">POST</strong> http://&lt;SERVER IP&gt;:3000/api/rfid/scan<br>
                         <strong style="color:var(--accent-warning);">Header:</strong> x-api-key: rpi_warehouse_rfid_key_2026<br>
-                        <strong style="color:#c084fc;">Body:</strong> { "tag_id": "TAG00001", "status": "In-Stock", "shelf_id": "A-01" }
+                        <strong style="color:#c084fc;">Body:</strong> { "tag_id": "TAG00001", "action": "OUT", "shelf_id": "A-01", "employee_id": "E0001" }
                     </div>
                 </div>
             </div>
@@ -80,7 +80,7 @@
                     <select class="form-control" id="tagStatusFilter" style="width:160px;" onchange="loadTags()">
                         <option value="">สถานะทั้งหมด</option>
                         <option value="In-Stock">In-Stock</option>
-                        <option value="Moving">Moving</option>
+                        <option value="Wait-Scan">Wait-Scan</option>
                         <option value="Shipped">Shipped</option>
                         <option value="Unknown">Unknown</option>
                     </select>
@@ -91,9 +91,9 @@
                 </div>
                 <div class="table-container">
                     <table>
-                        <thead><tr><th>Tag ID</th><th>สินค้า</th><th>ชั้นวาง</th><th>Zone</th><th>สถานะ</th><th>อัปเดตล่าสุด</th></tr></thead>
+                        <thead><tr><th>Tag ID</th><th>สินค้า</th><th>ชั้นวาง</th><th>Zone</th><th>สถานะ</th><th>ผู้สแกนล่าสุด</th><th>อัปเดตล่าสุด</th></tr></thead>
                         <tbody id="tagsBody">
-                            <tr><td colspan="6"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
+                            <tr><td colspan="7"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -110,16 +110,20 @@
                         <input type="text" id="testTag" class="form-control" placeholder="TAG00001" style="width:180px;">
                     </div>
                     <div class="form-group mb-0">
-                        <label class="form-label">Status</label>
-                        <select id="testStatus" class="form-control" style="width:140px;">
-                            <option value="In-Stock">In-Stock</option>
-                            <option value="Moving">Moving</option>
-                            <option value="Shipped">Shipped</option>
+                        <label class="form-label">Action</label>
+                        <select id="testAction" class="form-control" style="width:140px;">
+                            <option value="">(ระบุสถานะแทน)</option>
+                            <option value="IN">IN (รับเข้า)</option>
+                            <option value="OUT">OUT (เอาออก)</option>
                         </select>
                     </div>
                     <div class="form-group mb-0">
                         <label class="form-label">Shelf ID</label>
                         <input type="text" id="testShelf" class="form-control" placeholder="A-01" style="width:120px;">
+                    </div>
+                    <div class="form-group mb-0">
+                        <label class="form-label">Emp ID</label>
+                        <input type="text" id="testEmp" class="form-control" placeholder="E0001" style="width:90px;">
                     </div>
                     <button class="btn btn-primary" onclick="sendTestScan()">📤 ส่ง Scan</button>
                 </div>
@@ -151,7 +155,7 @@
         document.getElementById('tagCount').textContent = `${res.data.length} tags`;
         const tbody = document.getElementById('tagsBody');
         if (!res.data.length) {
-            tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><span class="icon">🏷️</span><p>ไม่พบแท็ก</p></div></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><span class="icon">🏷️</span><p>ไม่พบแท็ก</p></div></td></tr>';
             return;
         }
         tbody.innerHTML = res.data.map(t => `<tr>
@@ -160,18 +164,20 @@
             <td class="fw-mono">${t.shelf_id || '<span class="text-muted">—</span>'}</td>
             <td>${t.zone_id ? `<span class="badge badge-operator">${t.zone_id}</span>` : '<span class="text-muted">—</span>'}</td>
             <td>${getStatusBadge(t.status)}</td>
+            <td style="font-size:0.8rem; color:var(--accent-primary);"><strong>${t.scanned_by_name ? t.scanned_by_name : '<span class="text-muted">—</span>'}</strong></td>
             <td style="font-size:0.72rem; color:var(--text-secondary);">${formatDate(t.last_update)}</td>
         </tr>`).join('');
     }
 
     async function sendTestScan() {
         const tag_id  = document.getElementById('testTag').value || 'TAG00001';
-        const status  = document.getElementById('testStatus').value;
+        const action  = document.getElementById('testAction').value || undefined;
         const shelf_id = document.getElementById('testShelf').value || null;
+        const employee_id = document.getElementById('testEmp').value || null;
         const res = await apiFetch('/rfid/scan', {
             method: 'POST',
             headers: { 'x-api-key': 'rpi_warehouse_rfid_key_2026' },
-            body: JSON.stringify({ tag_id, status, shelf_id })
+            body: JSON.stringify({ tag_id, action, shelf_id, employee_id })
         });
         const resultDiv = document.getElementById('testResult');
         resultDiv.style.display = 'block';
