@@ -7,10 +7,14 @@ const { verifyToken, verifyApiKey } = require('../middleware/auth');
 router.get('/tags', verifyToken, async (req, res) => {
     try {
         const [rows] = await db.query(`
-            SELECT rt.*, p.name AS product_name, l.zone_id
+            SELECT rt.*, p.name AS product_name, l.zone_id,
+                   COALESCE(SUM(CASE WHEN t.transaction_type = 'IN'  THEN t.quantity ELSE 0 END), 0)
+                 - COALESCE(SUM(CASE WHEN t.transaction_type = 'OUT' THEN t.quantity ELSE 0 END), 0) AS current_qty
             FROM rfid_tags rt
             LEFT JOIN products  p ON rt.product_id = p.product_id
             LEFT JOIN locations l ON rt.shelf_id   = l.shelf_id
+            LEFT JOIN transactions t ON rt.tag_id = t.tag_id
+            GROUP BY rt.tag_id, p.product_id, p.name, l.shelf_id, l.zone_id
             ORDER BY rt.last_update DESC
         `);
         res.json({ success: true, data: rows });
@@ -84,6 +88,50 @@ router.post('/scan', verifyApiKey, async (req, res) => {
                 newStatus = 'In-Stock';
             }
             finalShelfId = shelf_id;
+        }
+
+        // Check Capacity before placing on shelf
+        if (finalShelfId && (newStatus === 'In-Stock' || newStatus === 'Moving')) {
+            const [locRows] = await db.query(`
+                SELECT capacity FROM locations WHERE shelf_id = ?
+            `, [finalShelfId]);
+            
+            if (locRows.length) {
+                const capacity = locRows[0].capacity || 100;
+                
+                // Get used capacity of the shelf (excluding the tag being processed if it's already there)
+                const [usedRows] = await db.query(`
+                    SELECT SUM(current_qty) AS current_qty FROM (
+                        SELECT 
+                            COALESCE(SUM(CASE WHEN t.transaction_type = 'IN' THEN t.quantity ELSE 0 END), 0) -
+                            COALESCE(SUM(CASE WHEN t.transaction_type = 'OUT' THEN t.quantity ELSE 0 END), 0) AS current_qty
+                        FROM rfid_tags rt
+                        LEFT JOIN transactions t ON rt.tag_id = t.tag_id
+                        WHERE rt.shelf_id = ? AND rt.tag_id != ?
+                        GROUP BY rt.tag_id
+                        HAVING current_qty > 0
+                    ) sub
+                `, [finalShelfId, tag_id]);
+                
+                const usedCapacity = usedRows[0] ? parseInt(usedRows[0].current_qty || 0) : 0;
+                
+                // Get qty of the incoming tag
+                const [tagRows] = await db.query(`
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN transaction_type = 'IN' THEN quantity ELSE 0 END), 0) -
+                        COALESCE(SUM(CASE WHEN transaction_type = 'OUT' THEN quantity ELSE 0 END), 0) AS qty
+                    FROM transactions WHERE tag_id = ?
+                `, [tag_id]);
+                
+                const tagQty = tagRows[0] ? Math.max(parseInt(tagRows[0].qty || 1), 1) : 1; // Default to 1 if no transactions
+                
+                if (usedCapacity + tagQty > capacity) {
+                    return res.status(400).json({ 
+                        success: false, 
+                        message: `❌ ชั้นวาง ${finalShelfId} เต็มแล้ว! (จุได้ ${capacity}, ใช้ไป ${usedCapacity}, ต้องการนำเข้า ${tagQty})` 
+                    });
+                }
+            }
         }
 
         await db.query(

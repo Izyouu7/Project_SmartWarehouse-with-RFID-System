@@ -41,9 +41,7 @@ CREATE TABLE IF NOT EXISTS employees (
 CREATE TABLE IF NOT EXISTS products (
     product_id    CHAR(10) PRIMARY KEY,
     name          VARCHAR(50) NOT NULL,
-    unit          VARCHAR(20) DEFAULT 'ชิ้น',
-    reorder_point INT DEFAULT 10,
-    price         DECIMAL(10, 2) DEFAULT 0.00
+    reorder_point INT DEFAULT 10
 );
 
 -- =====================================================
@@ -51,7 +49,8 @@ CREATE TABLE IF NOT EXISTS products (
 -- =====================================================
 CREATE TABLE IF NOT EXISTS locations (
     shelf_id CHAR(6) PRIMARY KEY,
-    zone_id  CHAR(8)
+    zone_id  CHAR(8),
+    capacity INT DEFAULT 100
 );
 
 -- =====================================================
@@ -140,23 +139,23 @@ ON DUPLICATE KEY UPDATE name = name;
 -- =====================================================
 -- Seed Data: Products
 -- =====================================================
-INSERT INTO products (product_id, name, reorder_point, price) VALUES
-('PRD0000001', 'สายไฟ AWG 22 (100m)',       5,  350.00),
-('PRD0000002', 'บอร์ด Raspberry Pi 4B',     3, 1850.00),
-('PRD0000003', 'แท็ก RFID UHF Passive',    50,   15.00),
-('PRD0000004', 'กล่องพลาสติก ABS ขนาด A4', 20,  120.00),
-('PRD0000005', 'อะแดปเตอร์ 12V 5A',        10,  280.00)
+INSERT INTO products (product_id, name, reorder_point) VALUES
+('PRD0000001', 'สายไฟ AWG 22 (100m)',       5),
+('PRD0000002', 'บอร์ด Raspberry Pi 4B',     3),
+('PRD0000003', 'แท็ก RFID UHF Passive',    50),
+('PRD0000004', 'กล่องพลาสติก ABS ขนาด A4', 20),
+('PRD0000005', 'อะแดปเตอร์ 12V 5A',        10)
 ON DUPLICATE KEY UPDATE name = name;
 
 -- =====================================================
 -- Seed Data: Locations
 -- =====================================================
-INSERT INTO locations (shelf_id, zone_id) VALUES
-('A-01', 'ZONE-A'),
-('A-02', 'ZONE-A'),
-('B-01', 'ZONE-B'),
-('B-02', 'ZONE-B'),
-('C-01', 'ZONE-C')
+INSERT INTO locations (shelf_id, zone_id, capacity) VALUES
+('A-01', 'ZONE-A', 50),
+('A-02', 'ZONE-A', 50),
+('B-01', 'ZONE-B', 50),
+('B-02', 'ZONE-B', 50),
+('C-01', 'ZONE-C', 50)
 ON DUPLICATE KEY UPDATE zone_id = zone_id;
 
 -- =====================================================
@@ -206,14 +205,12 @@ SELECT
     p.name                                                                                AS ชื่อสินค้า,
     COALESCE(SUM(CASE WHEN t.transaction_type = 'IN'  THEN t.quantity ELSE 0 END), 0)
   - COALESCE(SUM(CASE WHEN t.transaction_type = 'OUT' THEN t.quantity ELSE 0 END), 0)    AS จำนวนคงเหลือ,
-    p.reorder_point                                                                       AS จุดสั่งซื้อ,
-    p.price                                                                               AS ราคา
+    p.reorder_point                                                                       AS จุดสั่งซื้อ
 FROM products p
 LEFT JOIN rfid_tags rt   ON rt.product_id = p.product_id
 LEFT JOIN transactions t ON t.tag_id      = rt.tag_id
 GROUP BY
     p.product_id,
     p.name,
-    p.reorder_point,
-    p.price
+    p.reorder_point
 ORDER BY p.product_id;

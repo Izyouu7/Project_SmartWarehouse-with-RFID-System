@@ -5,6 +5,94 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>โซน &amp; ชั้นวาง — Smart Warehouse RFID</title>
     <link rel="stylesheet" href="css/style.css">
+    <style>
+        .progress-bar-bg { width: 100%; height: 8px; background: var(--bg-secondary); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+        .progress-bar-fill { height: 100%; transition: width 0.3s ease; }
+        .progress-bar-fill.safe { background: var(--accent-success); }
+        .progress-bar-fill.warning { background: var(--accent-warning); }
+        .progress-bar-fill.danger { background: var(--accent-danger); }
+        .text-safe { color: var(--accent-success); }
+        .text-warning { color: var(--accent-warning); }
+        .text-danger { color: var(--accent-danger); }
+        
+        .expand-btn { background: none; border: none; cursor: pointer; color: var(--text-secondary); transition: transform 0.2s ease; font-size: 0.9rem; display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 4px; }
+        .expand-btn:hover { background: rgba(0,0,0,0.05); }
+        .expand-btn.expanded { transform: rotate(90deg); }
+        
+        .expand-child { display: none; background: rgba(99, 102, 241, 0.02); }
+        .expand-child.show { display: table-row; }
+        .inner-table { width: 100%; font-size: 0.85rem; margin: 6px 0 12px 0; border: 1px solid var(--border-color); border-radius: var(--radius-sm); overflow: hidden; border-collapse: collapse; }
+        .inner-table th, .inner-table td { padding: 6px 12px; border-bottom: 1px solid var(--border-color); text-align: left; }
+        .inner-table th { background: rgba(0,0,0,0.03); color: var(--text-secondary); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; font-size: 0.75rem; border-bottom: 1px solid var(--border-color); }
+        .inner-table tbody tr:last-child td { border-bottom: none; }
+        
+        /* Prevent double borders when expanded */
+        .parent-row td { border-bottom: 1px solid var(--border-color); }
+        .parent-row.expanded td { border-bottom: none; }
+        
+        /* New Zone Card Design */
+        .zone-card {
+            background: var(--bg-card);
+            border-radius: var(--radius-md);
+            padding: 20px;
+            flex: 1;
+            min-width: 300px;
+            border: 1px solid var(--border-color);
+            border-top: 3px solid var(--accent-success);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .zone-card-header {
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .zone-stat-box {
+            background: rgba(0,0,0,0.2);
+            border-radius: var(--radius-sm);
+            padding: 15px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+        }
+        .zone-stat-col {
+            text-align: center;
+            flex: 1;
+        }
+        .zone-stat-col:not(:last-child) {
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+        .zone-stat-val {
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+        .zone-stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        .zone-progress-area {
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .zone-progress-track {
+            width: 80%;
+            height: 6px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 3px;
+            margin: 8px auto 0;
+            overflow: hidden;
+        }
+        .zone-progress-fill {
+            height: 100%;
+            background: #3b82f6;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+    </style>
 </head>
 <body>
 <div class="app-layout">
@@ -64,13 +152,15 @@
                     <table>
                         <thead>
                             <tr>
+                                <th style="width: 40px; text-align:center;"></th>
                                 <th>Shelf ID</th>
                                 <th>Zone</th>
-                                <th>จัดการ</th>
+                                <th style="width: 250px;">ความจุ (Capacity)</th>
+                                <th style="width: 120px;">จัดการ</th>
                             </tr>
                         </thead>
                         <tbody id="locBody">
-                            <tr><td colspan="3"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
+                            <tr><td colspan="5"><div class="loading-overlay"><div class="spinner"></div></div></td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -94,6 +184,10 @@
                 <div class="form-group">
                     <label class="form-label">Zone ID * <small class="text-muted">(CHAR 8)</small></label>
                     <input type="text" id="zoneIdInput" class="form-control" placeholder="ZONE-A" maxlength="8" required>
+                </div>
+                <div class="form-group" style="grid-column: span 2;">
+                    <label class="form-label">ความจุสูงสุด (Capacity) * <small class="text-muted">จำนวนหน่วยสินค้าที่รองรับได้</small></label>
+                    <input type="number" id="capacityInput" class="form-control" placeholder="100" min="1" required>
                 </div>
             </div>
             <div class="modal-footer">
@@ -126,13 +220,40 @@
         const zones = [...new Set(locs.map(l => l.zone_id))].sort();
         const container = document.getElementById('zoneCards');
         if (!zones.length) { container.innerHTML = '<div class="empty-state"><span class="icon">🗺️</span><p>ยังไม่มีโซน</p></div>'; return; }
+        
         container.innerHTML = zones.map(zone => {
-            const count = locs.filter(l => l.zone_id === zone).length;
-            return `<div class="stat-card blue" style="min-width:180px; flex:1; max-width:240px;">
-                <div class="stat-icon blue">🏭</div>
-                <div style="flex:1;">
-                    <div style="font-size:1.1rem; font-weight:800;">${zone}</div>
-                    <div class="stat-label">${count} ชั้นวาง</div>
+            const zoneLocs = locs.filter(l => l.zone_id === zone);
+            const totalCapacity = zoneLocs.reduce((sum, l) => sum + (parseInt(l.capacity) || 100), 0);
+            const totalUsed = zoneLocs.reduce((sum, l) => sum + (parseInt(l.used_capacity) || 0), 0);
+            const remaining = Math.max(totalCapacity - totalUsed, 0);
+            const pct = totalCapacity > 0 ? ((totalUsed / totalCapacity) * 100).toFixed(1) : '0.0';
+            
+            // สีตัวเลขตามการใช้งาน (คล้ายๆ ในภาพที่ขอมาคือ used เป็นสีเขียว)
+            const usedColor = totalUsed > 0 ? (pct >= 90 ? 'var(--accent-danger)' : 'var(--accent-success)') : '#fff';
+            const pctColor = pct >= 90 ? 'var(--accent-danger)' : 'var(--accent-success)';
+
+            return `
+            <div class="zone-card">
+                <div class="zone-card-header">📍 ${zone}</div>
+                <div class="zone-stat-box">
+                    <div class="zone-stat-col">
+                        <div class="zone-stat-val" style="color: ${usedColor};">${totalUsed}</div>
+                        <div class="zone-stat-label">ใช้งานแล้ว</div>
+                    </div>
+                    <div class="zone-stat-col">
+                        <div class="zone-stat-val" style="color: #fff;">${remaining}</div>
+                        <div class="zone-stat-label">คงเหลือ</div>
+                    </div>
+                    <div class="zone-stat-col">
+                        <div class="zone-stat-val" style="color: #cbd5e1;">${totalCapacity}</div>
+                        <div class="zone-stat-label">ความจุโซน</div>
+                    </div>
+                </div>
+                <div class="zone-progress-area">
+                    อัตราการใช้งานโซน <span style="color: ${pctColor}; font-weight: 700;">${pct}%</span>
+                    <div class="zone-progress-track">
+                        <div class="zone-progress-fill" style="width: ${pct}%;"></div>
+                    </div>
                 </div>
             </div>`;
         }).join('');
@@ -141,24 +262,85 @@
     function renderLocTable(locs) {
         const tbody = document.getElementById('locBody');
         if (!locs.length) {
-            tbody.innerHTML = '<tr><td colspan="3"><div class="empty-state"><span class="icon">🗺️</span><p>ยังไม่มีชั้นวาง</p></div></td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><span class="icon">🗺️</span><p>ยังไม่มีชั้นวาง</p></div></td></tr>';
             return;
         }
-        tbody.innerHTML = locs.map(l => `<tr>
-            <td class="fw-bold fw-mono">${l.shelf_id}</td>
-            <td><span class="badge badge-operator">${l.zone_id}</span></td>
-            <td>
-                <div class="table-actions">
-                    <button class="btn btn-secondary btn-sm" onclick="openEditLocModal('${l.shelf_id}')">✏️</button>
-                    <button class="btn btn-danger btn-sm" onclick="deleteLoc('${l.shelf_id}')">🗑️</button>
-                </div>
-            </td>
-        </tr>`).join('');
+        tbody.innerHTML = locs.map(l => {
+            const cap = l.capacity || 100;
+            const used = l.used_capacity || 0;
+            const pct = Math.min((used / cap) * 100, 100).toFixed(1);
+            let colorClass = 'safe';
+            let textClass = 'text-safe';
+            if (pct >= 90) { colorClass = 'danger'; textClass = 'text-danger'; }
+            else if (pct >= 75) { colorClass = 'warning'; textClass = 'text-warning'; }
+            
+            let itemsHtml = '';
+            if (l.items && l.items.length > 0) {
+                const trs = l.items.map(item => `
+                    <tr>
+                        <td class="fw-mono" style="font-size:0.8rem;">${item.tag_id}</td>
+                        <td><strong>${item.product_name || 'ไม่ทราบชื่อ'}</strong></td>
+                        <td class="fw-bold">${item.current_qty}</td>
+                    </tr>
+                `).join('');
+                itemsHtml = `
+                    <table class="inner-table">
+                        <thead><tr><th>RFID Tag</th><th>สินค้า</th><th>จำนวนคงเหลือบนชั้น</th></tr></thead>
+                        <tbody>${trs}</tbody>
+                    </table>
+                `;
+            } else {
+                itemsHtml = `<div class="text-muted" style="padding:10px 15px; font-size:0.85rem;">🚫 ไม่มีสินค้าในชั้นวางนี้</div>`;
+            }
+
+            return `
+            <tr class="parent-row" id="row-${l.shelf_id}">
+                <td style="text-align:center;">
+                    <button type="button" class="expand-btn" onclick="toggleExpand('${l.shelf_id}')" id="btn-${l.shelf_id}">▶</button>
+                </td>
+                <td class="fw-bold fw-mono">${l.shelf_id}</td>
+                <td><span class="badge badge-operator">${l.zone_id}</span></td>
+                <td>
+                    <div style="font-size:0.8rem; display:flex; justify-content:space-between; margin-bottom:4px;">
+                        <span class="text-muted">ใช้ไป ${used} / ${cap}</span>
+                        <span class="fw-bold ${textClass}">${pct}%</span>
+                    </div>
+                    <div class="progress-bar-bg"><div class="progress-bar-fill ${colorClass}" style="width: ${pct}%"></div></div>
+                </td>
+                <td>
+                    <div class="table-actions">
+                        <button class="btn btn-secondary btn-sm" onclick="openEditLocModal('${l.shelf_id}')">✏️</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteLoc('${l.shelf_id}')">🗑️</button>
+                    </div>
+                </td>
+            </tr>
+            <tr class="expand-child" id="child-${l.shelf_id}">
+                <td></td>
+                <td colspan="4" style="padding-top:0;">${itemsHtml}</td>
+            </tr>
+            `;
+        }).join('');
+    }
+
+    function toggleExpand(id) {
+        const row = document.getElementById('child-' + id);
+        const parent = document.getElementById('row-' + id);
+        const btn = document.getElementById('btn-' + id);
+        if (row.classList.contains('show')) {
+            row.classList.remove('show');
+            parent.classList.remove('expanded');
+            btn.classList.remove('expanded');
+        } else {
+            row.classList.add('show');
+            parent.classList.add('expanded');
+            btn.classList.add('expanded');
+        }
     }
 
     function openAddLocationModal() {
         document.getElementById('editShelfId').value = '';
         document.getElementById('locationForm').reset();
+        document.getElementById('capacityInput').value = '100';
         document.getElementById('locModalTitle').textContent = '➕ เพิ่มชั้นวางใหม่';
         document.getElementById('shelfIdInput').disabled = false;
         document.getElementById('locModalAlert').classList.add('alert-hidden');
@@ -172,6 +354,7 @@
         document.getElementById('shelfIdInput').value = l.shelf_id;
         document.getElementById('shelfIdInput').disabled = true;
         document.getElementById('zoneIdInput').value = l.zone_id;
+        document.getElementById('capacityInput').value = l.capacity || 100;
         document.getElementById('locModalTitle').textContent = '✏️ แก้ไขชั้นวาง';
         document.getElementById('locModalAlert').classList.add('alert-hidden');
         document.getElementById('locationModal').classList.add('show');
@@ -184,7 +367,8 @@
         const editId = document.getElementById('editShelfId').value;
         const body = {
             shelf_id: document.getElementById('shelfIdInput').value,
-            zone_id:  document.getElementById('zoneIdInput').value
+            zone_id:  document.getElementById('zoneIdInput').value,
+            capacity: parseInt(document.getElementById('capacityInput').value) || 100
         };
         const btn = document.getElementById('locSaveBtn');
         btn.disabled = true; btn.textContent = 'กำลังบันทึก...';

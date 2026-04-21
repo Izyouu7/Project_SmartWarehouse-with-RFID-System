@@ -21,7 +21,7 @@ router.get('/', verifyToken, async (req, res) => {
             query += ' WHERE p.name LIKE ? OR p.product_id LIKE ?';
             params.push(`%${search}%`, `%${search}%`);
         }
-        query += ' GROUP BY p.product_id ORDER BY p.name';
+        query += ' GROUP BY p.product_id HAVING stock_count > 0 ORDER BY p.name';
         const [rows] = await db.query(query, params);
         res.json({ success: true, data: rows });
     } catch (err) {
@@ -42,12 +42,12 @@ router.get('/:id', verifyToken, async (req, res) => {
 
 // POST /api/products
 router.post('/', verifyToken, async (req, res) => {
-    const { product_id, name, reorder_point, price } = req.body;
+    const { product_id, name, reorder_point } = req.body;
     if (!product_id || !name) return res.status(400).json({ success: false, message: 'product_id and name required' });
     try {
         await db.query(
-            'INSERT INTO products (product_id, name, reorder_point, price) VALUES (?, ?, ?, ?)',
-            [product_id, name, reorder_point || 10, price || 0]
+            'INSERT INTO products (product_id, name, reorder_point) VALUES (?, ?, ?)',
+            [product_id, name, reorder_point || 10]
         );
         res.status(201).json({ success: true, message: 'เพิ่มสินค้าสำเร็จ' });
     } catch (err) {
@@ -57,11 +57,11 @@ router.post('/', verifyToken, async (req, res) => {
 
 // PUT /api/products/:id
 router.put('/:id', verifyToken, async (req, res) => {
-    const { name, reorder_point, price } = req.body;
+    const { name, reorder_point } = req.body;
     try {
         await db.query(
-            'UPDATE products SET name = ?, reorder_point = ?, price = ? WHERE product_id = ?',
-            [name, reorder_point, price, req.params.id]
+            'UPDATE products SET name = ?, reorder_point = ? WHERE product_id = ?',
+            [name, reorder_point, req.params.id]
         );
         res.json({ success: true, message: 'อัปเดตสินค้าสำเร็จ' });
     } catch (err) {

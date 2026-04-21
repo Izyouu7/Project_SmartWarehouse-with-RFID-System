@@ -44,7 +44,7 @@ router.get('/', verifyToken, async (req, res) => {
 // POST /api/transactions
 router.post('/', verifyToken, async (req, res) => {
     let { transaction_type, quantity, employee_id, tag_id, po_id, shipment_id,
-          supplier_id, customer_id, product_id, product_name, price, unit, auto_tag } = req.body;
+          supplier_id, customer_id, product_id, product_name, auto_tag } = req.body;
     if (!transaction_type) return res.status(400).json({ success: false, message: 'transaction_type required' });
     if (transaction_type === 'IN'  && !supplier_id && !po_id)       return res.status(400).json({ success: false, message: 'IN transaction ต้องระบุ supplier_id' });
     if (transaction_type === 'OUT' && !customer_id && !shipment_id) return res.status(400).json({ success: false, message: 'OUT transaction ต้องระบุ customer_id' });
@@ -68,8 +68,8 @@ router.post('/', verifyToken, async (req, res) => {
             if (product_name && !product_id) {
                 product_id = 'PRD' + Date.now().toString().slice(-7);
                 await db.query(
-                    'INSERT INTO products (product_id, name, unit, reorder_point, price) VALUES (?, ?, ?, 0, ?)',
-                    [product_id, product_name, unit || 'ชิ้น', parseFloat(price) || 0]
+                    'INSERT INTO products (product_id, name, reorder_point) VALUES (?, ?, ?)',
+                    [product_id, product_name, 0]
                 );
             }
             if (product_id) {

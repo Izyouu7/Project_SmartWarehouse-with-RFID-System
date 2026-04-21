@@ -6,6 +6,19 @@
     <title>Dashboard — Smart Warehouse RFID</title>
     <link rel="stylesheet" href="css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        /* Zone Card Design */
+        .zone-card { background: var(--bg-card); border-radius: var(--radius-md); padding: 20px; flex: 1; min-width: 250px; border: 1px solid var(--border-color); border-top: 3px solid var(--accent-success); display: flex; flex-direction: column; gap: 15px; }
+        .zone-card-header { text-align: center; font-size: 1.1rem; font-weight: 700; color: var(--text-primary); }
+        .zone-stat-box { background: rgba(0,0,0,0.2); border-radius: var(--radius-sm); padding: 12px; display: flex; justify-content: space-around; align-items: center; }
+        .zone-stat-col { text-align: center; flex: 1; }
+        .zone-stat-col:not(:last-child) { border-right: 1px solid rgba(255,255,255,0.1); }
+        .zone-stat-val { font-size: 1.3rem; font-weight: 800; margin-bottom: 2px; }
+        .zone-stat-label { font-size: 0.7rem; color: var(--text-secondary); }
+        .zone-progress-area { text-align: center; font-size: 0.75rem; color: var(--text-secondary); }
+        .zone-progress-track { width: 80%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; margin: 8px auto 0; overflow: hidden; }
+        .zone-progress-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+    </style>
 </head>
 <body>
 <div class="app-layout">
@@ -74,6 +87,17 @@
                 </div>
 
             </div>
+            
+            <!-- Zone Cards -->
+            <div style="margin-top:20px; margin-bottom:20px;">
+                <div style="margin-bottom:12px; display:flex; justify-content:space-between; align-items:flex-end;">
+                    <div style="font-size:1.1rem; font-weight:700;">🗺️ สถานะภาพรวมระดับโซน</div>
+                    <a href="locations.html" class="text-muted" style="font-size:0.85rem; text-decoration:none;">ดูรายละเอียดการจัดเรียง ➜</a>
+                </div>
+                <div id="dashZoneCards" style="display:flex; flex-wrap:wrap; gap:16px;">
+                    <div class="loading-overlay"><div class="spinner"></div></div>
+                </div>
+            </div>
 
             <!-- Charts -->
             <div class="grid-2" style="margin-bottom: 20px;">
@@ -140,6 +164,54 @@
         }
 
         drawStatusChart(d);
+        
+        // Load Location Zones
+        const locRes = await apiFetch('/locations');
+        if (locRes?.success) {
+            renderDashZoneCards(locRes.data);
+        }
+    }
+
+    function renderDashZoneCards(locs) {
+        const zones = [...new Set(locs.map(l => l.zone_id))].sort();
+        const container = document.getElementById('dashZoneCards');
+        if (!zones.length) { container.innerHTML = '<div class="empty-state" style="width:100%;"><span class="icon">🗺️</span><p>ยังไม่มีโซน</p></div>'; return; }
+        
+        container.innerHTML = zones.map(zone => {
+            const zoneLocs = locs.filter(l => l.zone_id === zone);
+            const totalCapacity = zoneLocs.reduce((sum, l) => sum + (parseInt(l.capacity) || 100), 0);
+            const totalUsed = zoneLocs.reduce((sum, l) => sum + (parseInt(l.used_capacity) || 0), 0);
+            const remaining = Math.max(totalCapacity - totalUsed, 0);
+            const pct = totalCapacity > 0 ? ((totalUsed / totalCapacity) * 100).toFixed(1) : '0.0';
+            
+            const usedColor = totalUsed > 0 ? (pct >= 90 ? 'var(--accent-danger)' : 'var(--accent-success)') : '#fff';
+            const pctColor = pct >= 90 ? 'var(--accent-danger)' : (pct >= 75 ? 'var(--accent-warning)' : 'var(--accent-success)');
+            
+            return `
+            <div class="zone-card">
+                <div class="zone-card-header">📍 ${zone}</div>
+                <div class="zone-stat-box">
+                    <div class="zone-stat-col">
+                        <div class="zone-stat-val" style="color: ${usedColor};">${totalUsed}</div>
+                        <div class="zone-stat-label">ใช้งานแล้ว</div>
+                    </div>
+                    <div class="zone-stat-col">
+                        <div class="zone-stat-val" style="color: #fff;">${remaining}</div>
+                        <div class="zone-stat-label">คงเหลือ</div>
+                    </div>
+                    <div class="zone-stat-col">
+                        <div class="zone-stat-val" style="color: #cbd5e1;">${totalCapacity}</div>
+                        <div class="zone-stat-label">ความจุโซน</div>
+                    </div>
+                </div>
+                <div class="zone-progress-area">
+                    อัตราการใช้งาน <span style="color: ${pctColor}; font-weight: 700;">${pct}%</span>
+                    <div class="zone-progress-track">
+                        <div class="zone-progress-fill" style="width: ${pct}%; background: ${pctColor};"></div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
     }
 
     function drawStatusChart(d) {

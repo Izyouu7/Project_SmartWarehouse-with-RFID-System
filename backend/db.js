@@ -16,8 +16,19 @@ const pool = mysql.createPool({
 
 // Test connection on startup
 pool.getConnection()
-    .then(conn => {
+    .then(async (conn) => {
         console.log('✅ MySQL Connected to:', process.env.DB_NAME);
+        
+        // Auto-migration: Ensure capacity column exists
+        try {
+            await conn.query('ALTER TABLE locations ADD COLUMN capacity INT DEFAULT 100');
+            console.log('✅ Added capacity column to locations table');
+        } catch (err) {
+            if (err.code !== 'ER_DUP_FIELDNAME') {
+                console.error('⚠️ DB Migration info:', err.message);
+            }
+        }
+        
         conn.release();
     })
     .catch(err => {
