@@ -1,126 +1,107 @@
-# 🏭 Smart Warehouse RFID System
+# 📦 Smart Warehouse RFID System
 
-ระบบจัดการคลังสินค้าด้วย RFID พร้อม Raspberry Pi Integration
+ระบบจัดการคลังสินค้าอัตโนมัติด้วยเทคโนโลยี RFID ร่วมกับ Raspberry Pi สำหรับการติดตามสถานะสินค้า การรับเข้า เบิกออก และการจัดการคลังสินค้าแบบเรียลไทม์
 
-## โครงสร้างโปรเจค
+ลิ้งค์canva https://canva.link/h63moy6i17g34f6 
+---
 
-```
-rfid test/
-├── backend/               # Node.js + Express API Server
-│   ├── server.js          # Entry point
-│   ├── db.js              # MySQL connection
-│   ├── .env               # Config (แก้ DB password ด้วย)
-│   ├── middleware/auth.js  # JWT + API Key middleware
-│   └── routes/
-│       ├── auth.js        # Login/logout
-│       ├── products.js    # CRUD สินค้า
-│       ├── locations.js   # CRUD โซน/ชั้นวาง
-│       ├── rfid.js        # RFID scan endpoint (Raspberry Pi)
-│       ├── transactions.js # รับ-เบิก สินค้า
-│       ├── employees.js   # CRUD พนักงาน
-│       ├── suppliers.js   # CRUD ซัพพลายเออร์
-│       ├── customers.js   # CRUD ลูกค้า
-│       ├── purchase_orders.js # ใบสั่งซื้อ
-│       ├── shipments.js   # ใบส่งสินค้า
-│       └── dashboard.js   # Dashboard stats
-├── frontend/              # HTML + CSS + Vanilla JS
-│   ├── index.html         # Login
-│   ├── dashboard.html     # Dashboard
-│   ├── inventory.html     # จัดการสินค้า
-│   ├── rfid-monitor.html  # RFID Live Monitor
-│   ├── transactions.html  # รายการรับ-เบิก
-│   ├── locations.html     # โซนและชั้นวาง
-│   ├── suppliers.html     # ซัพพลายเออร์
-│   ├── customers.html     # ลูกค้า
-│   ├── css/style.css      # Design system
-│   └── js/api.js          # API utilities
-└── database/schema.sql    # MySQL schema + seed data
-```
+## 💻 1. เทคโนโลยีและระบบที่เกี่ยวข้อง (Tech Stack & Tools)
+
+| หมวดหมู่ | เทคโนโลยีที่ใช้ |
+|---|---|
+| **Frontend** | HTML, CSS (Vanilla), JavaScript |
+| **Backend** | Node.js, Express.js |
+| **Database** | MySQL |
+| **Hardware** | Raspberry Pi, RFID Reader |
+| **DevOps/Infra** | Docker, Docker Compose |
+| **API & Auth** | JWT (JSON Web Token), API Key, bcrypt |
 
 ---
 
-## ⚙️ การติดตั้ง
+## ⚙️ 2. ฟังก์ชันหรือระบบการทำงานของระบบ (System Feature)
 
-### 1. ติดตั้ง MySQL และสร้างฐานข้อมูล
-
-```bash
-mysql -u root -p < database/schema.sql
-```
-
-### 2. แก้ไข `.env`
-
-```bash
-# backend/.env
-DB_HOST=localhost
-DB_USER=root
-DB_PASSWORD=password  ← แก้ตรงนี้
-DB_NAME=warehouse_rfid
-JWT_SECRET=warehouse_rfid_super_secret_key_2026
-RFID_API_KEY=rpi_warehouse_rfid_key_2026
-PORT=3000
-```
-
-### 3. รันเซิร์ฟเวอร์
-
-```bash
-cd backend
-node server.js
-```
-
-### 4. เปิดเบราว์เซอร์/database
-
-http://localhost/phpmyadmin
-```
-http://localhost:3000
-```
+*   **การจัดการพนักงาน (Employee Management)**
+    *   เพิ่ม แก้ไข ลบ ข้อมูลพนักงาน
+    *   จัดการสิทธิ์การเข้าใช้งานระบบ (Admin, Operator)
+*   **การจัดการคลังสินค้าและอุปกรณ์ (Inventory Management)**
+    *   จัดการข้อมูลสินค้า (SKU, ชื่อสินค้า, ราคา, Reorder Point)
+    *   จัดการโซนและชั้นวางสินค้า (Locations & Shelf ID)
+    *   จัดการรหัส Tag RFID (ผูก Tag เข้ากับสินค้าและตำแหน่ง)
+*   **การจัดการซัพพลายเออร์และลูกค้า (Supplier & Customer Management)**
+    *   บันทึกและจัดการข้อมูลบริษัทผู้จัดหาสินค้า (Suppliers)
+    *   บันทึกและจัดการข้อมูลลูกค้า (Customers)
+*   **การจัดการรายการรับ-เบิก (Transaction & Movement History)**
+    *   บันทึกประวัติการรับเข้า (IN) และเบิกออก (OUT) ของสินค้าแต่ละชิ้น
+    *   ประวัติอัปเดตอัตโนมัติเมื่อมีการสแกน RFID ผ่านจุดสแกน
+*   **การรายงานและแดชบอร์ด (Reporting & Dashboard)**
+    *   แสดงผลรวมสินค้าคงคลัง ข้อมูลการเคลื่อนไหวแบบ Real-time
+    *   ระบบมอนิเตอร์การสแกน RFID แบบสดๆ (Live Monitor)
 
 ---
 
-## 🔐 ข้อมูลเข้าสู่ระบบ (Default)
+## ✨ 3. จุดเด่น หรือ ฟีเจอร์ที่น่าสนใจ (Highlight Feature)
 
-| ชื่อผู้ใช้ | รหัสผ่าน | บทบาท |
-|------------|----------|-------|
+*   **Real-time RFID Integration**: มี API รองรับการส่งข้อมูลจาก Raspberry Pi เพื่ออัปเดตสถานะสินค้า (In-Stock, Moving, Shipped) ทันที
+*   **Automated Inventory Calculation**: คำนวณจำนวนสินค้าคงเหลืออัตโนมัติจากประวัติ Transaction ด้วย SQL View หมดปัญหาข้อมูลไม่ตรงกัน
+*   **Live Updates**: แดชบอร์ดจะรีเฟรชข้อมูลอัตโนมัติทุก 15 วินาที และหน้า RFID Monitor อัปเดตทุก 5 วินาที
+*   **Low Stock Alerts**: ระบบมีการแจ้งเตือนเมื่อระดับสินค้าคงเหลือต่ำกว่า Reorder Point
+*   **Auto Document Generation**: สร้างใบสั่งซื้อ (PO) หรือใบส่งสินค้า (Shipment) อัตโนมัติเมื่อมี Transaction เกิดขึ้น
+*   **Docker Ready**: ติดตั้งง่ายและพร้อมใช้งานทันทีผ่าน Docker Compose ครบจบในคำสั่งเดียว
+
+---
+
+## 🚀 4. การติดตั้งและใช้งานระบบ (How to run the system)
+
+### ทางเลือกที่ 1: รันผ่าน Docker (แนะนำ)
+1. เปิด Terminal และเข้าไปที่โฟลเดอร์โปรเจค
+2. รันคำสั่ง `docker-compose up -d`
+3. ระบบจะทำงานโดยอัตโนมัติ สามารถเข้าใช้งานได้ทันที
+
+### ทางเลือกที่ 2: รันแบบ Manual
+1. **เตรียมฐานข้อมูล:** นำไฟล์ `database/schema.sql` ไป Execute ใน MySQL เพื่อสร้างตารางและข้อมูลเริ่มต้น
+2. **ตั้งค่า Environment:** เข้าไปแก้ไขไฟล์ `backend/.env` ให้ตรงกับฐานข้อมูลของคุณ:
+   ```env
+   DB_HOST=localhost
+   DB_USER=root
+   DB_PASSWORD=password # <-- ให้อาจารย์ใส่รหัสผ่าน MySQL ของเครื่องอาจารย์
+   DB_NAME=warehouse_rfid
+   JWT_SECRET=warehouse_rfid_super_secret_key_2026
+   RFID_API_KEY=rpi_warehouse_rfid_key_2026
+   PORT=3000
+
+   ```
+3. **เปิดเซิร์ฟเวอร์:** เปิด Terminal เข้าไปที่โฟลเดอร์ `backend` แล้วรัน:
+   ```bash
+   node server.js
+   ```
+4. **การเข้าใช้งาน:** เปิด Web Browser และเข้าไปที่ `http://localhost:3000`
+
+---
+
+## 🔐 5. ข้อมูลเข้าสู่ระบบ (Login Information)
+
+| ชื่อผู้ใช้ (Username) | รหัสผ่าน (Password) | บทบาท (Role) |
+|---|---|---|
 | `admin` | `password` | Administrator |
 | `operator1` | `password` | Operator |
 
-> รหัสผ่านทุก account ถูกเข้ารหัสด้วย bcrypt เก็บใน `employees.password_hash`
+*(หมายเหตุ: รหัสผ่านถูกเข้ารหัสความปลอดภัยด้วย bcrypt ไว้ในฐานข้อมูล)*
 
 ---
 
-## 🗄️ โครงสร้างฐานข้อมูล
+## 📡 6. การเชื่อมต่อ Raspberry Pi (Raspberry Pi Integration)
 
-| ตาราง | ข้อมูล |
-|-------|--------|
-| `employees` | พนักงาน + ข้อมูล Login (username, password_hash, role) |
-| `products` | SKU, ชื่อสินค้า, Reorder Point, ราคา |
-| `locations` | รหัสโซน, Shelf ID |
-| `rfid_tags` | Tag Code, product, location, สถานะ |
-| `purchase_orders` | ใบสั่งซื้อ, ซัพพลายเออร์, วันที่ |
-| `shipments` | ใบส่งสินค้า, ลูกค้า, วันที่ |
-| `transactions` | รายการ IN/OUT, พนักงาน, RFID tag |
-| `suppliers` | บริษัทผู้จัดหาสินค้า |
-| `customers` | ลูกค้า |
+ระบบนี้มี Endpoint ไว้สำหรับรับข้อมูลการสแกนจาก Raspberry Pi
 
-### View
-
-| View | ข้อมูล |
-|------|--------|
-| `vw_product_inventory` | สินค้าคงเหลือ (คำนวณจาก transactions IN - OUT) |
-
----
-
-## 📡 Raspberry Pi Integration
-
-### Endpoint สำหรับส่งข้อมูล RFID
-
-```
+**Endpoint URL:**
+```http
 POST http://SERVER_IP:3000/api/rfid/scan
-Header: x-api-key: rpi_warehouse_rfid_key_2026
-Content-Type: application/json
+Header: 
+  x-api-key: rpi_warehouse_rfid_key_2026
+  Content-Type: application/json
 ```
 
-### JSON Body
-
+**ตัวอย่าง Payload (JSON):**
 ```json
 {
   "tag_code": "RFID-001",
@@ -130,11 +111,9 @@ Content-Type: application/json
   "location_hint": "Zone-A"
 }
 ```
+*(สถานะ `status` ที่รองรับ: `In-Stock`, `Moving`, `Shipped`)*
 
-> `status` ต้องเป็น: `In-Stock`, `Moving`, หรือ `Shipped`
-
-### ตัวอย่าง Python (Raspberry Pi)
-
+**ตัวอย่างโค้ด Python สำหรับ Raspberry Pi:**
 ```python
 import requests
 import time
@@ -159,21 +138,31 @@ def send_rfid_scan(tag_code, status, reader_id="RPI-1"):
             timeout=5
         )
         print(f"✅ Sent {tag_code} ({status}): {res.status_code}")
-        return res.json()
     except Exception as e:
         print(f"❌ Error: {e}")
 
-# Test
-send_rfid_scan("RFID-A01-001", "In-Stock", "READER-A")
-send_rfid_scan("RFID-B01-003", "Moving",   "READER-GATE")
-send_rfid_scan("RFID-OUT-001", "Shipped",  "READER-EXIT")
+# ทดสอบส่งข้อมูล
+send_rfid_scan("RFID-A01-001", "In-Stock", "READER-IN")
 ```
 
 ---
 
-## 🔄 Auto-Features
+## 📁 7. โครงสร้างโปรเจค (Project Structure)
 
-- **Dashboard Auto-refresh**: อัพเดทข้อมูลทุก 15 วินาที
-- **RFID Monitor Live**: อัพเดทการสแกนใหม่ทุก 5 วินาที
-- **Low Stock Alert**: แจ้งเตือนสินค้าที่ต่ำกว่า Reorder Point
-- **Auto PO/Shipment**: สร้าง Purchase Order / Shipment อัตโนมัติเมื่อบันทึก transaction
+```text
+rfid test/
+├── backend/               # โฟลเดอร์สำหรับ API Server (Node.js)
+│   ├── server.js          # จุดเริ่มต้นของแอปพลิเคชัน
+│   ├── db.js              # ไฟล์เชื่อมต่อฐานข้อมูล MySQL
+│   ├── .env               # ไฟล์ตั้งค่าตัวแปรระบบ
+│   ├── middleware/        # ตัวกลางตรวจสอบสิทธิ์ (JWT, API Key)
+│   └── routes/            # จัดการ API Endpoints (Products, RFID, etc.)
+├── frontend/              # โฟลเดอร์สำหรับหน้าเว็บไซต์ (HTML/CSS/JS)
+│   ├── index.html         # หน้า Login
+│   ├── dashboard.html     # หน้า Dashboard สรุปผล
+│   ├── rfid-monitor.html  # หน้าแสดงผลการสแกนแบบสดๆ
+│   └── ...                # หน้าจัดการอื่นๆ
+├── database/              # ไฟล์ฐานข้อมูล
+│   └── schema.sql         # โครงสร้างตารางและข้อมูลเริ่มต้น
+└── docker-compose.yml     # ไฟล์สำหรับรันด้วย Docker
+```
